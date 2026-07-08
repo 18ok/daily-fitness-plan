@@ -1,0 +1,30 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+.vercel/
+devserver.out.log
+*.log
+.DS_Store
+
+# Local QA screenshots and design scratch files
+/*.png
+/*.jpg
+/*.jpeg
+/audit-*.png
+/check-*.png
+/debug-*.png
+/qa-*.png
+/ui-*.png
+/design/
+/build_id_card_complaint_doc.py
+
+# Source/reference boards not required by the deployed app
+/assets/mascot/
+/assets/references/
+/assets/source-boards/
+/assets/stickers/**/*.zip
+/assets/stickers/**/cells_with_labels/
+/assets/stickers/**/illustrations/
+/assets/stickers/**/contact_sheet*.png
