@@ -6,6 +6,10 @@ create table if not exists public.app_snapshots (
 
 alter table public.app_snapshots enable row level security;
 
+grant usage on schema public to authenticated;
+grant select, insert, update on table public.app_snapshots to authenticated;
+revoke all on table public.app_snapshots from anon;
+
 drop policy if exists "users can read own snapshot" on public.app_snapshots;
 create policy "users can read own snapshot"
 on public.app_snapshots
@@ -24,4 +28,3 @@ on public.app_snapshots
 for update
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
-
