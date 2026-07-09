@@ -27,9 +27,18 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   min-width: 320px;
+  overscroll-behavior: none;
   background:
     linear-gradient(180deg, #fbf6ec 0%, #fff8f3 46%, #fff5f4 100%);
 }
@@ -156,6 +165,10 @@ button:focus-visible {
   position: relative;
   height: calc(100% - 76px);
   overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   padding: 0 20px 112px;
   scrollbar-width: none;
 }
@@ -2331,10 +2344,25 @@ button:focus-visible {
 }
 
 .sync-panel-live {
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-direction: column;
   align-items: start;
-  min-height: 136px;
+  height: auto;
+  min-height: 150px;
   gap: 12px;
+}
+
+.sync-panel-live.is-authenticated {
+  min-height: 176px;
+}
+
+.sync-panel-live.is-verifying {
+  min-height: 198px;
+}
+
+.sync-panel-live > div {
+  width: 100%;
+  min-width: 0;
 }
 
 .sync-account {
@@ -2354,11 +2382,18 @@ button:focus-visible {
 
 .sync-login {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 92px;
+  grid-template-columns: minmax(0, 1fr) 104px;
   gap: 8px;
 }
 
-.sync-login input {
+.sync-login-flow {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+}
+
+.sync-login input,
+.sync-code-row input {
   min-width: 0;
   height: 38px;
   padding: 0 12px;
@@ -2372,19 +2407,37 @@ button:focus-visible {
   outline: 0;
 }
 
-.sync-login input:focus {
+.sync-login input:focus,
+.sync-code-row input:focus {
   border-color: #9dddb7;
   box-shadow: 0 0 0 3px rgba(64, 176, 113, 0.13);
 }
 
+.sync-login input:disabled {
+  color: #786d70;
+  background: #f8f5f2;
+}
+
+.sync-code-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 104px;
+  gap: 8px;
+}
+
+.sync-code-row button {
+  width: 100%;
+}
+
 .sync-actions {
+  width: 100%;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
 .sync-actions button,
-.sync-login button {
+.sync-login button,
+.sync-code-row button {
   width: 100%;
   padding: 0 8px;
 }
@@ -2401,7 +2454,8 @@ button:focus-visible {
 }
 
 .sync-actions button:disabled,
-.sync-login button:disabled {
+.sync-login button:disabled,
+.sync-code-row button:disabled {
   opacity: 0.62;
   cursor: wait;
 }
@@ -3402,8 +3456,8 @@ button:focus-visible {
 @media (max-width: 520px) {
   .mobile-shell {
     width: 100vw;
-    height: 100vh;
-    min-height: 100vh;
+    height: 100dvh;
+    min-height: 0;
     box-shadow: none;
   }
 
@@ -3433,6 +3487,21 @@ button:focus-visible {
 }
 
 @media (max-width: 380px) {
+  .sync-actions {
+    gap: 6px;
+  }
+
+  .sync-actions button {
+    height: 36px;
+    padding: 0 5px;
+    font-size: 11px;
+  }
+
+  .sync-login,
+  .sync-code-row {
+    grid-template-columns: minmax(0, 1fr) 98px;
+  }
+
   .time-grid,
   .option-grid.four {
     gap: 7px;
