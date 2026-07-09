@@ -5,6 +5,7 @@ import {
   BarChart3,
   BookOpen,
   CalendarDays,
+  ChevronLeft,
   ChevronRight,
   CircleUserRound,
   Dumbbell,
@@ -30,6 +31,7 @@ import { supabase } from './lib/supabaseClient';
 import { downloadSnapshot, restoreLocalSnapshot, uploadSnapshot } from './lib/syncSnapshot';
 import { calculateCareStreak, countNightRecoveries, localDateKey, upsertCareRecord } from './lib/careHistory';
 import { samePlanSelections, upsertDailyPlan } from './lib/dailyPlanHistory';
+import { PlanCalendar } from './components/PlanCalendar';
 
 import logoCat from '../assets/stickers/cat-companion/illustrations_clean/02_sailor_flag_cat.png';
 import planCat from '../assets/stickers/cat-companion/illustrations_clean/05_magic_wand_cat.png';
@@ -1457,7 +1459,7 @@ function ProfilePage() {
   );
 }
 
-function Header() {
+function Header({ calendarOpen, onCalendarToggle }) {
   return (
     <header className="app-header">
       <div className="brand">
@@ -1466,9 +1468,9 @@ function Header() {
         </span>
         <strong>今日可爱能量</strong>
       </div>
-      <button className="calendar-link" type="button">
-        <CalendarDays size={18} />
-        计划日历
+      <button className="calendar-link" onClick={onCalendarToggle} type="button">
+        {calendarOpen ? <ChevronLeft size={18} /> : <CalendarDays size={18} />}
+        {calendarOpen ? '返回' : '计划日历'}
       </button>
     </header>
   );
@@ -1476,6 +1478,7 @@ function Header() {
 
 function App() {
   const [activeTab, setActiveTab] = useState('today');
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [state, setState] = useLocalStorageState('today-plan-state', {
     time: '30分钟',
     status: '夜班后',
@@ -1487,21 +1490,27 @@ function App() {
   return (
     <main className="app-stage">
       <div className={`mobile-shell ${isNightRecovery ? 'night-recovery' : ''}`}>
-        <Header />
-        {activeTab === 'today' && <TodayPage state={state} setState={setState} plan={plan} />}
-        {activeTab === 'record' && <RecordPage state={state} />}
-        {activeTab === 'library' && <LibraryPage state={state} setState={setState} setActiveTab={setActiveTab} />}
-        {activeTab === 'stickers' && <StickersPage state={state} />}
-        {activeTab === 'profile' && <ProfilePage />}
+        <Header calendarOpen={calendarOpen} onCalendarToggle={() => setCalendarOpen((open) => !open)} />
+        {calendarOpen ? (
+          <PlanCalendar />
+        ) : (
+          <>
+            {activeTab === 'today' && <TodayPage state={state} setState={setState} plan={plan} />}
+            {activeTab === 'record' && <RecordPage state={state} />}
+            {activeTab === 'library' && <LibraryPage state={state} setState={setState} setActiveTab={setActiveTab} />}
+            {activeTab === 'stickers' && <StickersPage state={state} />}
+            {activeTab === 'profile' && <ProfilePage />}
+          </>
+        )}
 
-        <nav className="bottom-nav" aria-label="底部导航">
+        {!calendarOpen && <nav className="bottom-nav" aria-label="底部导航">
           {tabs.map(({ id, label, icon: Icon }) => (
             <button className={activeTab === id ? 'is-active' : ''} key={id} onClick={() => setActiveTab(id)} type="button">
               <Icon size={21} strokeWidth={activeTab === id ? 2.6 : 2.2} />
               <span>{label}</span>
             </button>
           ))}
-        </nav>
+        </nav>}
       </div>
     </main>
   );
