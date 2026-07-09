@@ -28,6 +28,7 @@ import { stickerCategories } from './data/stickerCatalog';
 import { planCategories, planTemplates } from './data/planTemplates';
 import { supabase } from './lib/supabaseClient';
 import { downloadSnapshot, restoreLocalSnapshot, uploadSnapshot } from './lib/syncSnapshot';
+import { calculateCareStreak, countNightRecoveries, localDateKey, upsertCareRecord } from './lib/careHistory';
 
 import logoCat from '../assets/stickers/cat-companion/illustrations_clean/02_sailor_flag_cat.png';
 import planCat from '../assets/stickers/cat-companion/illustrations_clean/05_magic_wand_cat.png';
@@ -558,7 +559,8 @@ function RecordPage({ state }) {
   const [checks, setChecks] = useLocalStorageState('record-checks', ['训练完成', '喝水完成']);
   const [energy, setEnergy] = useLocalStorageState('record-energy', '还可以');
   const [appetite, setAppetite] = useLocalStorageState('record-appetite', '正常吃了');
-  const [saved, setSaved] = useLocalStorageState('record-saved', false);
+  const [careHistory, setCareHistory] = useLocalStorageState('care-history', []);
+  const [saved, setSaved] = useState(() => careHistory.some((entry) => entry.date === localDateKey()));
   const items = [
     { label: '训练完成', helper: '按今天计划做了一点', icon: Dumbbell },
     { label: '吃饭完成', helper: '吃到蛋白质和主食', icon: Utensils },
@@ -577,6 +579,23 @@ function RecordPage({ state }) {
   function toggle(item) {
     setChecks((current) => (current.includes(item) ? current.filter((x) => x !== item) : [...current, item]));
     markUnsaved();
+  }
+
+  function saveTodayRecord() {
+    const date = localDateKey();
+    setCareHistory((current) =>
+      upsertCareRecord(current, {
+        date,
+        status: state.status,
+        time: state.time,
+        condition: state.condition,
+        checks,
+        energy,
+        appetite,
+        savedAt: new Date().toISOString(),
+      }),
+    );
+    setSaved(true);
   }
 
   return (
@@ -663,9 +682,9 @@ function RecordPage({ state }) {
         <p>{feedback.body}</p>
       </article>
 
-      <button className={`record-save ${saved ? 'is-saved' : ''}`} onClick={() => setSaved(true)} type="button">
+      <button className={`record-save ${saved ? 'is-saved' : ''}`} onClick={saveTodayRecord} type="button">
         <Save size={18} />
-        {saved ? '今日记录已保存' : '保存今日记录'}
+        {saved ? '今日已签到' : '保存记录并签到'}
       </button>
     </section>
   );
@@ -933,6 +952,8 @@ function ProfilePage() {
     duration: '30分钟',
   });
   const [foodPreference, setFoodPreference] = useLocalStorageState('profile-food-preference', '正常吃饭');
+  const [careHistory] = useLocalStorageState('care-history', []);
+  const [stickerFavorites] = useLocalStorageState('sticker-favorites', ['慢慢来']);
   const [activeSheet, setActiveSheet] = useState(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileDraft, setProfileDraft] = useState(null);
@@ -950,6 +971,9 @@ function ProfilePage() {
   const [syncBusy, setSyncBusy] = useState(false);
   const [syncStatus, setSyncStatus] = useState('登录后可以把计划、记录和个人设置同步到云端。');
   const [cloudSnapshot, setCloudSnapshot] = useState(null);
+  const careStreak = calculateCareStreak(careHistory);
+  const nightRecoveryCount = countNightRecoveries(careHistory);
+  const favoriteCount = Array.isArray(stickerFavorites) ? stickerFavorites.length : 0;
   const avatarOptions = [
     { label: '元气', src: logoCat },
     { label: '慢慢来', src: umbrellaCat },
@@ -1186,15 +1210,15 @@ function ProfilePage() {
 
       <section className="profile-stats">
         <article>
-          <strong>7天</strong>
+          <strong>{careStreak}天</strong>
           <span>连续照顾自己</span>
         </article>
         <article>
-          <strong>3次</strong>
+          <strong>{nightRecoveryCount}次</strong>
           <span>夜班后恢复</span>
         </article>
         <article>
-          <strong>12张</strong>
+          <strong>{favoriteCount}张</strong>
           <span>收藏贴纸</span>
         </article>
       </section>

@@ -7,6 +7,7 @@ export const SNAPSHOT_KEYS = [
   'record-energy',
   'record-appetite',
   'record-saved',
+  'care-history',
   'sticker-favorites',
   'profile-protect-mode',
   'profile-night-mode',
@@ -68,4 +69,3 @@ export async function uploadSnapshot(userId) {
   if (error) throw error;
   return payload;
 }
-
