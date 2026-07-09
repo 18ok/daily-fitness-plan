@@ -16,6 +16,8 @@ export const SNAPSHOT_KEYS = [
   'profile-training-preference',
   'profile-food-preference',
   'profile',
+  'cycle-logs',
+  'cycle-settings',
 ];
 
 function readJsonValue(key) {
