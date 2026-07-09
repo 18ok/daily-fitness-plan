@@ -2858,6 +2858,49 @@ button:focus-visible {
   box-shadow: var(--shadow-soft);
 }
 
+.cycle-overview {
+  min-height: 70px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid #f7c4d0;
+  border-radius: 17px;
+  color: #5c4e53;
+  background: linear-gradient(110deg, rgba(255, 239, 244, 0.96), rgba(255, 250, 236, 0.94));
+  box-shadow: 0 8px 20px rgba(116, 70, 78, 0.07);
+}
+
+.cycle-overview-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #e65e7b;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.cycle-overview strong {
+  display: block;
+  color: #31292c;
+  font-size: 14px;
+}
+
+.cycle-overview p {
+  margin: 3px 0 0;
+  color: #786b70;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.cycle-overview > svg {
+  color: #b5969e;
+}
+
 .calendar-board {
   padding: 14px;
   border-radius: 18px;
@@ -2936,6 +2979,21 @@ button:focus-visible {
   box-shadow: 0 5px 12px rgba(235, 101, 124, 0.12);
 }
 
+.calendar-day.has-cycle-log:not(.is-selected) {
+  color: #c54d6a;
+  background: #fff4f6;
+}
+
+.calendar-day.is-cycle-predicted:not(.is-selected) {
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(250, 211, 220, 0.32),
+    rgba(250, 211, 220, 0.32) 3px,
+    rgba(255, 255, 255, 0.15) 3px,
+    rgba(255, 255, 255, 0.15) 6px
+  );
+}
+
 .calendar-marks {
   height: 5px;
   display: flex;
@@ -2958,10 +3016,21 @@ button:focus-visible {
   background: #53bd83;
 }
 
+.cycle-mark {
+  background: #c85a87;
+}
+
+.calendar-legend .cycle-predicted-mark {
+  width: 9px;
+  border: 1px dashed #d88aa3;
+  background: #fff3f6;
+}
+
 .calendar-legend {
   min-height: 35px;
   justify-content: center;
-  gap: 20px;
+  flex-wrap: wrap;
+  gap: 7px 14px;
   margin-top: 8px;
   color: #786d70;
   font-size: 11px;
@@ -3063,6 +3132,26 @@ button:focus-visible {
   color: #369c69;
 }
 
+.calendar-detail-item.cycle-detail {
+  background: linear-gradient(90deg, #fff0f4, #fff9f2);
+}
+
+.cycle-detail .calendar-detail-icon {
+  color: #c44f76;
+}
+
+.cycle-detail > button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  border: 1px solid #f2c7d1;
+  border-radius: 50%;
+  color: #c45172;
+  background: rgba(255, 255, 255, 0.8);
+}
+
 .calendar-detail-item strong {
   font-size: 15px;
 }
@@ -3092,6 +3181,224 @@ button:focus-visible {
   color: #369c69;
 }
 
+.cycle-record-button {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 11px;
+  border: 1px solid #f4b9c7;
+  border-radius: 14px;
+  color: #c94f70;
+  background: #fff7f8;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.cycle-sync-message,
+.cycle-editor-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin: 9px 2px 0;
+  color: #6c8f7b;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.cycle-editor-backdrop {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(52, 38, 43, 0.28);
+  backdrop-filter: blur(3px);
+}
+
+.cycle-editor {
+  width: min(100%, 470px);
+  max-height: min(82vh, 720px);
+  overflow-y: auto;
+  padding: 18px;
+  border: 1px solid #f2ccd5;
+  border-radius: 22px 22px 16px 16px;
+  background: #fffdfc;
+  box-shadow: 0 -14px 44px rgba(75, 49, 57, 0.2);
+}
+
+.cycle-editor-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 17px;
+}
+
+.cycle-editor-head span {
+  color: #c55a76;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cycle-editor-head h2 {
+  margin: 3px 0 0;
+  font-size: 21px;
+}
+
+.cycle-editor-head button {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #eee1e4;
+  border-radius: 50%;
+  color: #75696c;
+  background: #fff;
+}
+
+.cycle-editor fieldset {
+  margin: 0 0 17px;
+  padding: 0;
+  border: 0;
+}
+
+.cycle-editor legend,
+.cycle-note > span {
+  display: block;
+  margin-bottom: 9px;
+  color: #40363a;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.cycle-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.cycle-choice-grid button,
+.cycle-symptom-list button {
+  min-height: 40px;
+  border: 1px solid #eadcde;
+  border-radius: 13px;
+  color: #665b5f;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.cycle-choice-grid button.is-active,
+.cycle-symptom-list button.is-active {
+  color: #c64f70;
+  border-color: #ef8ea5;
+  background: #fff0f4;
+  box-shadow: inset 0 0 0 1px rgba(239, 142, 165, 0.12);
+}
+
+.cycle-editor fieldset > small {
+  display: block;
+  margin-top: 7px;
+  color: #9b8e92;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.cycle-symptom-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.cycle-symptom-list button {
+  min-height: 36px;
+  padding: 0 12px;
+}
+
+.cycle-note {
+  display: block;
+  position: relative;
+}
+
+.cycle-note textarea {
+  width: 100%;
+  min-height: 82px;
+  resize: vertical;
+  padding: 11px 12px 25px;
+  border: 1px solid #eadcde;
+  border-radius: 14px;
+  color: #463d40;
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.55;
+  outline: none;
+}
+
+.cycle-note textarea:focus {
+  border-color: #ec8da4;
+  box-shadow: 0 0 0 3px rgba(236, 141, 164, 0.12);
+}
+
+.cycle-note > small {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  color: #a89b9f;
+  font-size: 10px;
+}
+
+.cycle-editor-actions {
+  display: flex;
+  gap: 9px;
+  margin-top: 17px;
+}
+
+.cycle-editor-actions button {
+  min-height: 46px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.cycle-save-button {
+  flex: 1;
+  color: #fff;
+  border: 0;
+  background: #f36f8b;
+  box-shadow: 0 8px 18px rgba(231, 92, 120, 0.2);
+}
+
+.cycle-delete-button {
+  min-width: 92px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: #a96b78;
+  border: 1px solid #edd6dc;
+  background: #fff7f8;
+}
+
+.cycle-editor-actions button:disabled {
+  opacity: 0.55;
+}
+
+.cycle-privacy-note {
+  margin: 10px 8px 0;
+  color: #9a8f92;
+  font-size: 10px;
+  line-height: 1.45;
+  text-align: center;
+}
+
 @media (max-width: 520px) {
   .mobile-shell {
     width: 100vw;
@@ -3109,6 +3416,19 @@ button:focus-visible {
   .sub-page {
     padding-left: 16px;
     padding-right: 16px;
+  }
+
+  .cycle-editor-backdrop {
+    padding: 0;
+  }
+
+  .cycle-editor {
+    max-height: 86vh;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 24px 24px 0 0;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
   }
 }
 
