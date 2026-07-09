@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient';
 export const SNAPSHOT_KEYS = [
   'today-plan-saved',
   'today-plan-state',
+  'daily-plan-history',
   'record-checks',
   'record-energy',
   'record-appetite',

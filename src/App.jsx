@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalStorageState } from './hooks/useLocalStorageState';
 import { createRoot } from 'react-dom/client';
 import {
@@ -29,6 +29,7 @@ import { planCategories, planTemplates } from './data/planTemplates';
 import { supabase } from './lib/supabaseClient';
 import { downloadSnapshot, restoreLocalSnapshot, uploadSnapshot } from './lib/syncSnapshot';
 import { calculateCareStreak, countNightRecoveries, localDateKey, upsertCareRecord } from './lib/careHistory';
+import { samePlanSelections, upsertDailyPlan } from './lib/dailyPlanHistory';
 
 import logoCat from '../assets/stickers/cat-companion/illustrations_clean/02_sailor_flag_cat.png';
 import planCat from '../assets/stickers/cat-companion/illustrations_clean/05_magic_wand_cat.png';
@@ -349,8 +350,45 @@ function ResultCard({ tone, icon: Icon, title, subtitle, detail, chips, sticker,
   );
 }
 
-function TodayPage({ state, setState, plan, saved, setSaved }) {
+function TodayPage({ state, setState, plan }) {
+  const [planHistory, setPlanHistory] = useLocalStorageState('daily-plan-history', []);
+  const resultRef = useRef(null);
+  const today = localDateKey();
+  const todayEntry = planHistory.find((entry) => entry.date === today);
+  const generated = samePlanSelections(todayEntry?.selections, state);
+  const saved = generated && todayEntry?.saved === true;
   const update = (key, value) => setState((current) => ({ ...current, [key]: value }));
+
+  function planRecord(overrides = {}) {
+    return {
+      date: today,
+      selections: { ...state },
+      plan,
+      contentVersion: 1,
+      generatedAt: new Date().toISOString(),
+      saved: false,
+      ...overrides,
+    };
+  }
+
+  function generateTodayPlan() {
+    setPlanHistory((current) => upsertDailyPlan(current, planRecord()));
+    window.setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  }
+
+  function toggleSavedPlan() {
+    const nextSaved = !saved;
+    setPlanHistory((current) =>
+      upsertDailyPlan(
+        current,
+        planRecord({
+          generatedAt: generated ? todayEntry.generatedAt : new Date().toISOString(),
+          saved: nextSaved,
+          savedAt: nextSaved ? new Date().toISOString() : null,
+        }),
+      ),
+    );
+  }
 
   return (
     <div className="page-content">
@@ -401,19 +439,19 @@ function TodayPage({ state, setState, plan, saved, setSaved }) {
           </div>
         </ChoiceGroup>
 
-        <button className="generate-button" type="button">
+        <button className={`generate-button ${generated ? 'is-generated' : ''}`} onClick={generateTodayPlan} type="button">
           <WandSparkles size={20} strokeWidth={2.4} />
-          生成今日计划
+          <span>{generated ? '今日计划已生成' : '生成今日计划'}</span>
         </button>
       </section>
 
-      <section className="today-panel">
+      <section className="today-panel" ref={resultRef}>
         <div className="panel-heading">
           <div>
             <h2>今天照着做</h2>
             <p>{plan.note}</p>
           </div>
-          <button className={`save-plan ${saved ? 'is-saved' : ''}`} onClick={() => setSaved(!saved)} type="button">
+          <button className={`save-plan ${saved ? 'is-saved' : ''}`} onClick={toggleSavedPlan} type="button">
             <Save size={15} />
             {saved ? '已保存' : '保存计划'}
           </button>
@@ -1438,7 +1476,6 @@ function Header() {
 
 function App() {
   const [activeTab, setActiveTab] = useState('today');
-  const [saved, setSaved] = useLocalStorageState('today-plan-saved', false);
   const [state, setState] = useLocalStorageState('today-plan-state', {
     time: '30分钟',
     status: '夜班后',
@@ -1451,7 +1488,7 @@ function App() {
     <main className="app-stage">
       <div className={`mobile-shell ${isNightRecovery ? 'night-recovery' : ''}`}>
         <Header />
-        {activeTab === 'today' && <TodayPage state={state} setState={setState} plan={plan} saved={saved} setSaved={setSaved} />}
+        {activeTab === 'today' && <TodayPage state={state} setState={setState} plan={plan} />}
         {activeTab === 'record' && <RecordPage state={state} />}
         {activeTab === 'library' && <LibraryPage state={state} setState={setState} setActiveTab={setActiveTab} />}
         {activeTab === 'stickers' && <StickersPage state={state} />}
