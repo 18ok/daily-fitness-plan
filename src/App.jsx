@@ -1014,8 +1014,7 @@ function ProfilePage() {
   });
   const [session, setSession] = useState(null);
   const [loginEmail, setLoginEmail] = useState('');
-  const [loginOtp, setLoginOtp] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
+  const [loginPassword, setLoginPassword] = useState('');
   const [syncBusy, setSyncBusy] = useState(false);
   const [syncStatus, setSyncStatus] = useState('登录后可以把计划、记录和个人设置同步到云端。');
   const [cloudSnapshot, setCloudSnapshot] = useState(null);
@@ -1107,7 +1106,7 @@ function ProfilePage() {
     };
   }, [session?.user?.id]);
 
-  async function sendLoginCode() {
+  async function signInWithPassword() {
     if (!supabase) {
       setSyncStatus('Supabase 还没有配置好。');
       return;
@@ -1115,53 +1114,28 @@ function ProfilePage() {
 
     const email = loginEmail.trim();
     if (!email || !email.includes('@')) {
-      setSyncStatus('先输入一个能收邮件的邮箱。');
+      setSyncStatus('请输入正确的登录邮箱。');
+      return;
+    }
+    if (loginPassword.length < 6) {
+      setSyncStatus('密码至少需要6位。');
       return;
     }
 
     setSyncBusy(true);
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        options: {
-          emailRedirectTo: import.meta.env.VITE_AUTH_REDIRECT_URL || window.location.origin,
-          shouldCreateUser: true,
-        },
-      });
-      if (error) throw error;
-      setOtpSent(true);
-      setLoginOtp('');
-      setSyncStatus('登录邮件已发送。看到6位验证码后回到这里输入；若仍是登录链接，请用 Safari 打开。');
-    } catch (error) {
-      setSyncStatus(`登录邮件发送失败：${error.message}`);
-    } finally {
-      setSyncBusy(false);
-    }
-  }
-
-  async function verifyLoginCode() {
-    if (!supabase) return;
-    const email = loginEmail.trim();
-    const token = loginOtp.trim();
-    if (!/^\d{6}$/.test(token)) {
-      setSyncStatus('请输入邮件里的6位数字验证码。');
-      return;
-    }
-
-    setSyncBusy(true);
-    try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        email,
-        token,
-        type: 'email',
+        password: loginPassword,
       });
       if (error) throw error;
       setSession(data.session || null);
-      setOtpSent(false);
-      setLoginOtp('');
+      setLoginPassword('');
       setSyncStatus('登录成功，正在检查云端数据。');
     } catch (error) {
-      setSyncStatus(`验证码登录失败：${error.message}`);
+      setSyncStatus(error.message === 'Invalid login credentials'
+        ? '邮箱或密码不正确，请重新输入。'
+        : `登录失败：${error.message}`);
     } finally {
       setSyncBusy(false);
     }
@@ -1269,7 +1243,7 @@ function ProfilePage() {
         </button>
       </article>
 
-      <article className={`sync-panel sync-panel-live ${session ? 'is-authenticated' : otpSent ? 'is-verifying' : 'is-logged-out'}`}>
+      <article className={`sync-panel sync-panel-live ${session ? 'is-authenticated' : 'is-logged-out'}`}>
         <div>
           <h2>远程登录与同步</h2>
           <p>{syncStatus}</p>
@@ -1282,35 +1256,25 @@ function ProfilePage() {
             <button disabled={syncBusy} onClick={signOut} type="button">退出</button>
           </div>
         ) : (
-          <div className="sync-login-flow">
-            <div className="sync-login">
-              <input
-                disabled={otpSent}
-                inputMode="email"
-                onChange={(event) => setLoginEmail(event.target.value)}
-                placeholder="输入邮箱"
-                type="email"
-                value={loginEmail}
-              />
-              <button disabled={syncBusy} onClick={sendLoginCode} type="button">
-                {syncBusy ? '发送中' : otpSent ? '重新发送' : '发送验证码'}
-              </button>
-            </div>
-            {otpSent && (
-              <div className="sync-code-row">
-                <input
-                  autoComplete="one-time-code"
-                  inputMode="numeric"
-                  maxLength={6}
-                  onChange={(event) => setLoginOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="输入6位验证码"
-                  value={loginOtp}
-                />
-                <button disabled={syncBusy || loginOtp.length !== 6} onClick={verifyLoginCode} type="button">
-                  确认登录
-                </button>
-              </div>
-            )}
+          <div className="sync-login-password">
+            <input
+              autoComplete="email"
+              inputMode="email"
+              onChange={(event) => setLoginEmail(event.target.value)}
+              placeholder="登录邮箱"
+              type="email"
+              value={loginEmail}
+            />
+            <input
+              autoComplete="current-password"
+              onChange={(event) => setLoginPassword(event.target.value)}
+              placeholder="登录密码"
+              type="password"
+              value={loginPassword}
+            />
+            <button disabled={syncBusy} onClick={signInWithPassword} type="button">
+              {syncBusy ? '登录中' : '登录并同步'}
+            </button>
           </div>
         )}
       </article>
