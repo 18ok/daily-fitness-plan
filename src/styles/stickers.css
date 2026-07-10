@@ -1,0 +1,444 @@
+.sticker-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 0;
+  padding-bottom: 6px;
+}
+
+.sticker-page {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  overflow-x: hidden;
+}
+
+.energy-hero {
+  min-height: 156px;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px;
+  gap: 10px;
+  align-items: center;
+  padding: 18px 16px 20px;
+  border-radius: 18px;
+  border: 1px solid #c9eedb;
+  background:
+    radial-gradient(circle at 82% 12%, rgba(255, 225, 132, 0.42), transparent 26%),
+    linear-gradient(135deg, #e8fbf1 0%, #fffdf8 74%);
+  box-shadow: var(--shadow);
+}
+
+.sticker-today-label {
+  display: inline-block;
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: #3f7a5d;
+  background: rgba(255, 255, 255, 0.82);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.sticker-today-copy h1 {
+  margin: 8px 0 0;
+  max-width: 100%;
+  font-size: 20px;
+  line-height: 1.14;
+  font-weight: 950;
+}
+
+.sticker-today-quote {
+  max-width: 100%;
+  margin: 8px 0 0;
+  color: #5f5558;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 750;
+}
+
+.sticker-today-actions {
+  position: absolute;
+  z-index: 3;
+  top: 12px;
+  right: 108px;
+  display: flex;
+  gap: 5px;
+}
+
+.sticker-action-btn {
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  border-radius: 999px;
+  color: #5f5558;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid var(--line);
+  font-size: 11px;
+  font-weight: 850;
+  box-shadow: 0 4px 10px rgba(92, 64, 58, 0.05), 0 1px 0 rgba(255, 255, 255, 0.86) inset;
+}
+
+.sticker-action-btn.is-active {
+  color: var(--pink-deep);
+  border-color: var(--pink);
+  background: var(--pink-soft);
+}
+
+.energy-hero h1 {
+  margin: 0;
+  max-width: 230px;
+  font-size: 22px;
+  line-height: 1.14;
+  font-weight: 950;
+}
+
+.energy-hero p {
+  margin: 9px 0 0;
+  color: #5f5558;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 750;
+}
+
+.today-sticker-card {
+  min-height: 104px;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 4px;
+  border-radius: 24px;
+  color: var(--pink-deep);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 10px 22px rgba(92, 64, 58, 0.08);
+  text-align: center;
+}
+
+.today-sticker-card .sticker {
+  width: 68px;
+  height: 68px;
+}
+
+.today-sticker-card strong {
+  font-size: 12px;
+  line-height: 1.1;
+  font-weight: 950;
+}
+
+.today-sticker-card span {
+  display: none;
+}
+
+.sticker-favorites-section {
+  padding-bottom: 12px;
+}
+
+.sticker-favorites-section:has(.favorite-sticker-chip:only-child) {
+  min-height: 152px;
+}
+
+.sticker-favorites-section:has(.favorite-sticker-chip) {
+  min-height: 152px;
+}
+
+.sticker-favorites-section:has(.favorite-sticker-chip:only-child) .favorite-sticker-row {
+  mask-image: none;
+}
+
+.sticker-favorites-section:has(.favorite-sticker-chip:only-child) .favorite-sticker-chip {
+  flex-basis: 122px;
+  min-height: 82px;
+  grid-template-columns: 48px 1fr;
+  justify-items: start;
+  align-items: center;
+  text-align: left;
+}
+
+.sticker-favorites-section:has(.favorite-sticker-chip:only-child) .favorite-sticker-chip .sticker {
+  width: 46px;
+  height: 46px;
+}
+
+.sticker-favorites-section:has(.favorite-sticker-chip:only-child) .favorite-sticker-chip span {
+  max-width: 58px;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.today-sticker-card strong {
+  max-width: 78px;
+  overflow-wrap: anywhere;
+}
+
+.sticker-section-head span {
+  flex: 0 0 auto;
+}
+
+.sticker-section-head h2 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@supports not selector(:has(*)) {
+  .sticker-favorites-section {
+    min-height: 0;
+  }
+}
+
+/* previous selector target kept compact on mobile */
+.today-sticker-card span {
+  color: #6b5f63;
+  font-size: 11px;
+  line-height: 1.25;
+  font-weight: 800;
+}
+
+.sticker-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.sticker-section-head h2 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.1;
+  font-weight: 950;
+}
+
+.sticker-section-head span {
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: var(--pink-deep);
+  background: var(--pink-soft);
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.sticker-favorites-section,
+.sticker-grid-section {
+  min-width: 0;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(92, 64, 58, 0.07);
+}
+
+.sticker-favorites-section {
+  overflow: visible;
+}
+
+.sticker-grid-section {
+  overflow: visible;
+  padding-bottom: 18px;
+}
+
+.favorite-sticker-row {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 0 4px 4px 0;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 24px), transparent 100%);
+}
+
+.favorite-sticker-row::-webkit-scrollbar {
+  display: none;
+}
+
+.favorite-sticker-chip {
+  flex: 0 0 76px;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 8px 6px;
+  border-radius: 16px;
+  color: var(--text);
+  background: var(--pink-soft);
+  border: 1px solid #ffd8df;
+}
+
+.favorite-sticker-chip .sticker {
+  width: 50px;
+  height: 50px;
+}
+
+.favorite-sticker-chip span {
+  max-width: 72px;
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 850;
+  text-align: center;
+}
+
+.favorite-empty {
+  margin: 0;
+  padding: 12px;
+  border-radius: 14px;
+  color: var(--muted);
+  background: #faf6f2;
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 750;
+}
+
+.favorite-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 9px 12px;
+  border-radius: 15px;
+  border: 1px solid #ffe59a;
+  background: #fff7d6;
+}
+
+.favorite-strip span {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: #b27a00;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.favorite-strip p {
+  margin: 0;
+  color: #705526;
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 800;
+}
+
+.sticker-tile {
+  position: relative;
+  min-height: 164px;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 6px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  box-shadow: 0 8px 20px rgba(92, 64, 58, 0.07);
+  text-align: center;
+  color: var(--text);
+  padding: 12px 10px;
+}
+
+.sticker-tile.mint {
+  background: var(--mint);
+}
+
+.sticker-tile.pink {
+  background: var(--pink-soft);
+}
+
+.sticker-tile.lemon {
+  background: var(--lemon);
+}
+
+.sticker-tile.lavender {
+  background: var(--lavender);
+}
+
+.sticker-tile .sticker {
+  width: 82px;
+  height: 82px;
+}
+
+.sticker-tile strong {
+  font-size: 15px;
+  line-height: 1.1;
+  font-weight: 950;
+}
+
+.sticker-tile span {
+  max-width: 132px;
+  color: #6b5f63;
+  font-size: 13px;
+  line-height: 1.3;
+  font-weight: 850;
+}
+
+.sticker-fav-mark {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--pink-deep);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 4px 10px rgba(235, 101, 124, 0.16);
+}
+
+.sticker-detail-sheet {
+  width: min(430px, 100vw);
+  justify-self: center;
+  max-height: 82%;
+  overflow-y: auto;
+  display: grid;
+  justify-items: center;
+  padding: 10px 18px 18px;
+  border-radius: 26px 26px 0 0;
+  background: #fffdf8;
+  box-shadow: 0 -18px 44px rgba(55, 42, 44, 0.18);
+}
+
+.big-sticker-preview {
+  width: 132px;
+  height: 132px;
+  margin-top: 2px;
+}
+
+.sticker-detail-sheet h2 {
+  margin: 8px 0 0;
+  font-size: 24px;
+  line-height: 1.1;
+  font-weight: 950;
+}
+
+.sticker-detail-scene {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: var(--pink-deep);
+  background: var(--pink-soft);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.sticker-detail-sheet p {
+  max-width: 340px;
+  margin: 10px 0 0;
+  color: #3a3033;
+  font-size: 15px;
+  line-height: 1.6;
+  text-align: center;
+  font-weight: 800;
+}
+
+.sticker-actions {
+  width: 100%;
+  margin-top: 16px;
+}
+
