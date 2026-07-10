@@ -6,13 +6,6 @@ import { createServer } from 'vite';
 const host = '127.0.0.1';
 const port = 4176;
 const origin = `http://${host}:${port}`;
-const expectedPages = [
-  ['今日计划', '.selector-panel'],
-  ['记录', '.record-page'],
-  ['计划库', '.library-page'],
-  ['能量贴纸', '.sticker-page'],
-  ['我的', '.profile-page'],
-];
 const knownLibraryConsoleErrors = [
   [
     'In HTML, %s cannot be a descendant of <%s>.',
@@ -46,6 +39,11 @@ const server = await createServer({
 });
 let browser;
 
+async function expectVisible(locator, label) {
+  await locator.waitFor({ state: 'visible' });
+  assert.equal(await locator.isVisible(), true, `${label} should be visible`);
+}
+
 try {
   await server.listen();
   browser = await chromium.launch({ headless: true });
@@ -60,18 +58,93 @@ try {
   page.on('console', (message) => {
     if (message.type() === 'error') consoleErrors.push(message.text());
   });
-  await page.addInitScript(() => localStorage.clear());
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('app-smoke-storage-initialized') !== 'true') {
+      localStorage.clear();
+      sessionStorage.setItem('app-smoke-storage-initialized', 'true');
+      sessionStorage.setItem('app-smoke-storage-clear-count', '1');
+    }
+  });
   await page.goto(origin, { waitUntil: 'networkidle' });
 
-  for (const [label, selector] of expectedPages) {
-    await page.getByRole('button', { name: label, exact: true }).click();
-    await page.locator(selector).waitFor({ state: 'visible' });
-    console.log(`ok - ${label}`);
-  }
+  await expectVisible(page.locator('.selector-panel'), 'Today selector');
+  await page.getByRole('button', { name: '生成今日计划', exact: true }).click();
+  await expectVisible(page.getByRole('button', { name: '今日计划已生成', exact: true }), 'Generated-plan state');
+  await page.getByRole('button', { name: '保存计划', exact: true }).click();
+  await expectVisible(page.getByRole('button', { name: '已保存', exact: true }), 'Saved-plan state');
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('daily-plan-history') || '[]')[0]?.saved === true);
+  console.log('ok - Today generation and persistence');
+
+  await page.getByRole('button', { name: '记录', exact: true }).click();
+  await expectVisible(page.locator('.record-page'), 'Record page');
+  await page.getByRole('button', { name: '保存记录并签到', exact: true }).click();
+  await expectVisible(page.getByRole('button', { name: '今日已签到', exact: true }), 'Saved record state');
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('care-history') || '[]').length === 1);
+  console.log('ok - Record save and persistence');
+
+  await page.getByRole('button', { name: '计划库', exact: true }).click();
+  await expectVisible(page.locator('.library-page'), 'Library page');
+  await page.locator('.template-card').first().click();
+  await expectVisible(page.locator('.template-detail-sheet'), 'Library detail');
+  await page.getByRole('button', { name: '先看看', exact: true }).click();
+  await page.locator('.template-detail-sheet').waitFor({ state: 'detached' });
+  console.log('ok - Library detail open and close');
+
+  await page.getByRole('button', { name: '能量贴纸', exact: true }).click();
+  await expectVisible(page.locator('.sticker-page'), 'Sticker page');
+  await page.locator('.today-sticker-card').click();
+  await expectVisible(page.locator('.sticker-detail-sheet'), 'Sticker detail');
+  await page.getByRole('button', { name: '收起', exact: true }).click();
+  await page.locator('.sticker-detail-sheet').waitFor({ state: 'detached' });
+  console.log('ok - Sticker detail open and close');
+
+  await page.getByRole('button', { name: '我的', exact: true }).click();
+  await expectVisible(page.locator('.profile-page'), 'Profile page');
+  await expectVisible(page.getByText('还没有配置 Supabase，同步功能暂时不可用。', { exact: true }), 'Unconfigured sync status');
+  await expectVisible(page.getByPlaceholder('登录邮箱'), 'Signed-out email field');
+  await expectVisible(page.getByPlaceholder('登录密码'), 'Signed-out password field');
+  await expectVisible(page.getByRole('button', { name: '登录并同步', exact: true }), 'Signed-out login action');
+  await page.getByRole('button', { name: /^提醒时间/ }).click();
+  await expectVisible(page.getByRole('dialog', { name: '提醒时间设置', exact: true }), 'Profile settings sheet');
+  await page.getByRole('button', { name: '取消', exact: true }).click();
+  await page.getByRole('dialog', { name: '提醒时间设置', exact: true }).waitFor({ state: 'detached' });
+  console.log('ok - signed-out sync UI and Profile settings sheet');
 
   await page.getByRole('button', { name: '计划日历', exact: true }).click();
-  await page.locator('.calendar-page').waitFor({ state: 'visible' });
-  console.log('ok - 计划日历');
+  await expectVisible(page.locator('.calendar-page'), 'Calendar page');
+  await page.getByRole('button', { name: '记录这天的身体情况', exact: true }).click();
+  await expectVisible(page.getByRole('dialog', { name: '身体情况记录', exact: true }), 'Cycle editor');
+  await page.getByRole('button', { name: '关闭', exact: true }).click();
+  await page.getByRole('dialog', { name: '身体情况记录', exact: true }).waitFor({ state: 'detached' });
+  console.log('ok - Calendar cycle editor open and dismiss');
+
+  const storageBeforeReload = await page.evaluate(() => ({
+    plan: localStorage.getItem('daily-plan-history'),
+    care: localStorage.getItem('care-history'),
+    clearCount: sessionStorage.getItem('app-smoke-storage-clear-count'),
+  }));
+  await page.reload({ waitUntil: 'networkidle' });
+  const storageAfterReload = await page.evaluate(() => ({
+    plan: localStorage.getItem('daily-plan-history'),
+    care: localStorage.getItem('care-history'),
+    clearCount: sessionStorage.getItem('app-smoke-storage-clear-count'),
+  }));
+  assert.deepEqual(storageAfterReload, storageBeforeReload, 'Reload should preserve generated plans and saved records');
+  assert.equal(storageAfterReload.clearCount, '1', 'localStorage should be cleared only once');
+  await expectVisible(page.getByRole('button', { name: '今日计划已生成', exact: true }), 'Restored generated plan');
+  await expectVisible(page.getByRole('button', { name: '已保存', exact: true }), 'Restored saved plan');
+  await page.getByRole('button', { name: '记录', exact: true }).click();
+  await expectVisible(page.getByRole('button', { name: '今日已签到', exact: true }), 'Restored saved record');
+  console.log('ok - refresh restoration without clearing storage');
+
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  const shellBox = await page.locator('.mobile-shell').boundingBox();
+  assert.ok(shellBox, 'Desktop shell should have a bounding box');
+  assert.equal(shellBox.width, 430, 'Desktop shell should retain its 430px frame');
+  assert.equal(shellBox.height, 932, 'Desktop shell should retain its 932px frame');
+  assert.equal(shellBox.x, 425, 'Desktop shell should be horizontally centered');
+  assert.equal(shellBox.y, 34, 'Desktop shell should be vertically centered');
+  console.log('ok - desktop framing');
 
   assert.deepEqual(pageErrors, [], `Page errors:\n${pageErrors.join('\n')}`);
   assert.deepEqual(

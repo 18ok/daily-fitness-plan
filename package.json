@@ -9,7 +9,8 @@
     "preview": "vite preview --host 0.0.0.0",
     "test:cycle": "node scripts/test-cycle-tracking.mjs",
     "test:app-logic": "node scripts/test-app-logic.mjs",
-    "test:smoke": "node scripts/test-app-smoke.mjs"
+    "test:smoke": "node scripts/test-app-smoke.mjs",
+    "verify:maintenance": "npm run test:app-logic && npm run test:cycle && npm run test:smoke && npm run build"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.1",
