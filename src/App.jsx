@@ -2,17 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalStorageState } from './hooks/useLocalStorageState';
 import { createRoot } from 'react-dom/client';
 import {
-  BarChart3,
   BookOpen,
   CalendarDays,
-  ChevronLeft,
   ChevronRight,
-  CircleUserRound,
   Dumbbell,
-  Folder,
   Heart,
   Home,
-  MessageCircle,
   Moon,
   Save,
   Settings,
@@ -31,7 +26,12 @@ import { supabase } from './lib/supabaseClient';
 import { downloadSnapshot, restoreLocalSnapshot, uploadSnapshot } from './lib/syncSnapshot';
 import { calculateCareStreak, countNightRecoveries, localDateKey, upsertCareRecord } from './lib/careHistory';
 import { samePlanSelections, upsertDailyPlan } from './lib/dailyPlanHistory';
+import { BottomNavigation } from './components/BottomNavigation';
+import { Header } from './components/Header';
 import { PlanCalendar } from './components/PlanCalendar';
+import { ResultCard } from './components/common/ResultCard';
+import { ChoiceGroup, OptionChip } from './components/common/SelectionControls';
+import { Sticker } from './components/common/Sticker';
 import { buildPlan } from './features/today/planBuilder';
 import { buildRecordFeedback, recordCompanionText } from './features/record/recordFeedback';
 
@@ -161,65 +161,6 @@ const conditionOptions = [
   { label: '家里', icon: Home },
   { label: '速食便利店', icon: ShoppingBag },
 ];
-
-const tabs = [
-  { id: 'today', label: '今日计划', icon: CalendarDays },
-  { id: 'record', label: '记录', icon: BarChart3 },
-  { id: 'library', label: '计划库', icon: Folder },
-  { id: 'stickers', label: '能量贴纸', icon: MessageCircle },
-  { id: 'profile', label: '我的', icon: CircleUserRound },
-];
-
-function Sticker({ src, alt, className = '' }) {
-  return <img className={`sticker ${className}`} src={src} alt={alt} draggable="false" />;
-}
-
-function OptionChip({ active, icon: Icon, label, onClick }) {
-  return (
-    <button className={`option-chip ${active ? 'is-active' : ''}`} onClick={onClick} type="button">
-      <Icon size={15} strokeWidth={2.3} />
-      <span>{label}</span>
-    </button>
-  );
-}
-
-function ChoiceGroup({ title, children }) {
-  return (
-    <section className="choice-group">
-      <h3>{title}</h3>
-      {children}
-    </section>
-  );
-}
-
-function ResultCard({ tone, icon: Icon, title, subtitle, detail, chips, sticker, alt }) {
-  return (
-    <article className={`result-card ${tone}`}>
-      <div className="result-icon">
-        <Icon size={19} strokeWidth={2.4} />
-      </div>
-      <div className="result-copy">
-        <div className="result-title-row">
-          <h3>{title}</h3>
-          {subtitle && <span>{subtitle}</span>}
-        </div>
-        <p>{detail}</p>
-        {chips?.length > 0 && (
-          <div className="mini-tags">
-            {chips.map((chip) => (
-              <span key={chip}>{chip}</span>
-            ))}
-          </div>
-        )}
-      </div>
-      {sticker && (
-        <span className="card-sticker-frame">
-          <Sticker src={sticker} alt={alt} className="card-sticker" />
-        </span>
-      )}
-    </article>
-  );
-}
 
 function TodayPage({ state, setState, plan }) {
   const [planHistory, setPlanHistory] = useLocalStorageState('daily-plan-history', []);
@@ -1266,23 +1207,6 @@ function ProfilePage() {
   );
 }
 
-function Header({ calendarOpen, onCalendarToggle }) {
-  return (
-    <header className="app-header">
-      <div className="brand">
-        <span className="brand-avatar">
-          <Sticker src={logoCat} alt="今日可爱能量头像" />
-        </span>
-        <strong>今日可爱能量</strong>
-      </div>
-      <button className="calendar-link" onClick={onCalendarToggle} type="button">
-        {calendarOpen ? <ChevronLeft size={18} /> : <CalendarDays size={18} />}
-        {calendarOpen ? '返回' : '计划日历'}
-      </button>
-    </header>
-  );
-}
-
 function App() {
   const [activeTab, setActiveTab] = useState('today');
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -1310,14 +1234,7 @@ function App() {
           </>
         )}
 
-        {!calendarOpen && <nav className="bottom-nav" aria-label="底部导航">
-          {tabs.map(({ id, label, icon: Icon }) => (
-            <button className={activeTab === id ? 'is-active' : ''} key={id} onClick={() => setActiveTab(id)} type="button">
-              <Icon size={21} strokeWidth={activeTab === id ? 2.6 : 2.2} />
-              <span>{label}</span>
-            </button>
-          ))}
-        </nav>}
+        {!calendarOpen && <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} />}
       </div>
     </main>
   );
