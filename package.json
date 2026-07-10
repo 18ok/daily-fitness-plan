@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "test:cycle": "node scripts/test-cycle-tracking.mjs",
-    "test:app-logic": "node scripts/test-app-logic.mjs"
+    "test:app-logic": "node scripts/test-app-logic.mjs",
+    "test:smoke": "node scripts/test-app-smoke.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.1",
