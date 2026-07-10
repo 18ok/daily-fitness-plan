@@ -13,9 +13,9 @@ const knownLibraryConsoleErrors = [
     '',
     '  <App>',
     '    <main className="app-stage">',
-    '      <div className="mobile-she...">',
+    '      <div className={"mobile-s..."}>',
     '        <Header>',
-    '        <LibraryPage state={{time:"30分钟", ...}} setState={function bound dispatchSetState} ...>',
+    '        <LibraryPage state={{time:"45分钟", ...}} setState={function bound dispatchSetState} ...>',
     '          <section className="sub-page l...">',
     '            <div>',
     '            <article>',
@@ -68,6 +68,18 @@ try {
   await page.goto(origin, { waitUntil: 'networkidle' });
 
   await expectVisible(page.locator('.selector-panel'), 'Today selector');
+  await page.getByRole('button', { name: '45分钟', exact: true }).click();
+  await page.getByRole('button', { name: '白班', exact: true }).click();
+  await page.getByRole('button', { name: '家里', exact: true }).click();
+  await page.waitForFunction(() => {
+    const state = JSON.parse(localStorage.getItem('today-plan-state') || 'null');
+    return state?.time === '45分钟' && state.status === '白班' && state.condition === '家里';
+  });
+  assert.deepEqual(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('today-plan-state'))),
+    { time: '45分钟', status: '白班', condition: '家里' },
+    'Today selections should persist before generation',
+  );
   await page.getByRole('button', { name: '生成今日计划', exact: true }).click();
   await expectVisible(page.getByRole('button', { name: '今日计划已生成', exact: true }), 'Generated-plan state');
   await page.getByRole('button', { name: '保存计划', exact: true }).click();
@@ -77,6 +89,30 @@ try {
 
   await page.getByRole('button', { name: '记录', exact: true }).click();
   await expectVisible(page.locator('.record-page'), 'Record page');
+  await page.getByRole('button', { name: /^吃饭完成/ }).click();
+  await page.getByRole('button', { name: '轻松', exact: true }).click();
+  await page.getByRole('button', { name: '吃少了', exact: true }).click();
+  await page.waitForFunction(() => {
+    const checks = JSON.parse(localStorage.getItem('record-checks') || '[]');
+    const energy = JSON.parse(localStorage.getItem('record-energy') || 'null');
+    const appetite = JSON.parse(localStorage.getItem('record-appetite') || 'null');
+    return checks.includes('吃饭完成') && energy === '轻松' && appetite === '吃少了';
+  });
+  assert.deepEqual(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('record-checks'))),
+    ['训练完成', '喝水完成', '吃饭完成'],
+    'Record completion changes should persist before save',
+  );
+  assert.equal(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('record-energy'))),
+    '轻松',
+    'Record energy should persist before save',
+  );
+  assert.equal(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('record-appetite'))),
+    '吃少了',
+    'Record appetite should persist before save',
+  );
   await page.getByRole('button', { name: '保存记录并签到', exact: true }).click();
   await expectVisible(page.getByRole('button', { name: '今日已签到', exact: true }), 'Saved record state');
   await page.waitForFunction(() => JSON.parse(localStorage.getItem('care-history') || '[]').length === 1);
