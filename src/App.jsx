@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocalStorageState } from './hooks/useLocalStorageState';
 import { createRoot } from 'react-dom/client';
 import {
@@ -16,7 +16,6 @@ import {
   Sparkles,
   Sun,
   Utensils,
-  WandSparkles,
 } from 'lucide-react';
 import './styles.css';
 import { nextTodayContent, quoteForSticker, recommendStickerForState, stickerByLabel, stickersForCategory } from './data/recommendQuote';
@@ -24,29 +23,23 @@ import { stickerCategories } from './data/stickerCatalog';
 import { planCategories, planTemplates } from './data/planTemplates';
 import { supabase } from './lib/supabaseClient';
 import { downloadSnapshot, restoreLocalSnapshot, uploadSnapshot } from './lib/syncSnapshot';
-import { calculateCareStreak, countNightRecoveries, localDateKey, upsertCareRecord } from './lib/careHistory';
-import { samePlanSelections, upsertDailyPlan } from './lib/dailyPlanHistory';
+import { calculateCareStreak, countNightRecoveries, localDateKey } from './lib/careHistory';
 import { BottomNavigation } from './components/BottomNavigation';
 import { Header } from './components/Header';
 import { PlanCalendar } from './components/PlanCalendar';
-import { ResultCard } from './components/common/ResultCard';
-import { ChoiceGroup, OptionChip } from './components/common/SelectionControls';
 import { Sticker } from './components/common/Sticker';
 import { buildPlan } from './features/today/planBuilder';
-import { buildRecordFeedback, recordCompanionText } from './features/record/recordFeedback';
+import { TodayPage } from './features/today/TodayPage';
+import { RecordPage } from './features/record/RecordPage';
 
 import logoCat from '../assets/stickers/cat-companion/illustrations_clean/02_sailor_flag_cat.png';
-import planCat from '../assets/stickers/cat-companion/illustrations_clean/05_magic_wand_cat.png';
-import foodCat from '../assets/stickers/cat-companion/illustrations_clean/04_sunflower_teddy_cat.png';
 import libraryCat from '../assets/stickers/cat-companion/illustrations_clean/06_detective_cat.png';
 import umbrellaCat from '../assets/stickers/cat-companion/illustrations_clean/09_kimono_umbrella_cat.png';
 import cheerRabbit from '../assets/stickers/cute-energy/illustrations_clean/10_cheer_rabbit.png';
 import goodnightSheep from '../assets/stickers/cute-energy/illustrations_clean/07_goodnight_sheep.png';
 import okBear from '../assets/stickers/cute-energy/illustrations_clean/22_ok_bear.png';
-import healingCat from '../assets/stickers/cute-energy/illustrations_clean/11_healing_cat.png';
 import workingRabbit from '../assets/stickers/cute-energy/illustrations_clean/19_working_rabbit.png';
 import loveBear from '../assets/stickers/cute-energy/illustrations_clean/01_love_bear.png';
-import confusedFrog from '../assets/stickers/cute-energy/illustrations_clean/06_frog_confused.png';
 
 const planStepIcons = {
   moon: Moon,
@@ -146,310 +139,6 @@ function TemplateDetailSheet({ template, onClose, onApply }) {
         </div>
       </section>
     </div>
-  );
-}
-
-const timeOptions = ['15分钟', '30分钟', '45分钟', '60分钟'];
-const statusOptions = [
-  { label: '白班', icon: Sun },
-  { label: '夜班后', icon: Moon },
-  { label: '休息日', icon: Sparkles },
-  { label: '很累', icon: Heart },
-];
-const conditionOptions = [
-  { label: '健身房', icon: Dumbbell },
-  { label: '家里', icon: Home },
-  { label: '速食便利店', icon: ShoppingBag },
-];
-
-function TodayPage({ state, setState, plan }) {
-  const [planHistory, setPlanHistory] = useLocalStorageState('daily-plan-history', []);
-  const pageRef = useRef(null);
-  const resultRef = useRef(null);
-  const today = localDateKey();
-  const todayEntry = planHistory.find((entry) => entry.date === today);
-  const generated = samePlanSelections(todayEntry?.selections, state);
-  const saved = generated && todayEntry?.saved === true;
-  const update = (key, value) => setState((current) => ({ ...current, [key]: value }));
-
-  function planRecord(overrides = {}) {
-    return {
-      date: today,
-      selections: { ...state },
-      plan,
-      contentVersion: 1,
-      generatedAt: new Date().toISOString(),
-      saved: false,
-      ...overrides,
-    };
-  }
-
-  function generateTodayPlan() {
-    setPlanHistory((current) => upsertDailyPlan(current, planRecord()));
-    window.setTimeout(() => {
-      const page = pageRef.current;
-      const result = resultRef.current;
-      if (!page || !result) return;
-      page.scrollTo({ top: Math.max(result.offsetTop - 8, 0), behavior: 'smooth' });
-    }, 80);
-  }
-
-  function toggleSavedPlan() {
-    const nextSaved = !saved;
-    setPlanHistory((current) =>
-      upsertDailyPlan(
-        current,
-        planRecord({
-          generatedAt: generated ? todayEntry.generatedAt : new Date().toISOString(),
-          saved: nextSaved,
-          savedAt: nextSaved ? new Date().toISOString() : null,
-        }),
-      ),
-    );
-  }
-
-  return (
-    <div className="page-content" ref={pageRef}>
-      <section className="selector-panel">
-        <Sticker src={planCat} alt="魔法猫贴纸" className="peek-sticker" />
-        <h1>今日状态选择</h1>
-
-        <ChoiceGroup title="今天有多少时间？">
-          <div className="time-grid">
-            {timeOptions.map((time) => (
-              <button
-                className={`time-chip ${state.time === time ? 'is-active' : ''}`}
-                key={time}
-                onClick={() => update('time', time)}
-                type="button"
-              >
-                {time}
-              </button>
-            ))}
-          </div>
-        </ChoiceGroup>
-
-        <ChoiceGroup title="今天的状态是？">
-          <div className="option-grid four">
-            {statusOptions.map((item) => (
-              <OptionChip
-                active={state.status === item.label}
-                icon={item.icon}
-                key={item.label}
-                label={item.label}
-                onClick={() => update('status', item.label)}
-              />
-            ))}
-          </div>
-        </ChoiceGroup>
-
-        <ChoiceGroup title="今天怎么安排？">
-          <div className="option-grid three">
-            {conditionOptions.map((item) => (
-              <OptionChip
-                active={state.condition === item.label}
-                icon={item.icon}
-                key={item.label}
-                label={item.label}
-                onClick={() => update('condition', item.label)}
-              />
-            ))}
-          </div>
-        </ChoiceGroup>
-
-        <button className={`generate-button ${generated ? 'is-generated' : ''}`} onClick={generateTodayPlan} type="button">
-          <WandSparkles size={20} strokeWidth={2.4} />
-          <span>{generated ? '今日计划已生成' : '生成今日计划'}</span>
-        </button>
-      </section>
-
-      <section className="today-panel" ref={resultRef}>
-        <div className="panel-heading">
-          <div>
-            <h2>今天照着做</h2>
-            <p>{plan.note}</p>
-          </div>
-          <button className={`save-plan ${saved ? 'is-saved' : ''}`} onClick={toggleSavedPlan} type="button">
-            <Save size={15} />
-            {saved ? '已保存' : '保存计划'}
-          </button>
-        </div>
-
-        <ResultCard
-          tone="mint"
-          icon={Dumbbell}
-          title="训练"
-          subtitle={plan.trainingTitle}
-          detail={`${plan.training}｜${plan.trainingDetail}`}
-          chips={['热身', '力量', '拉伸']}
-          sticker={cheerRabbit}
-          alt="加油兔子贴纸"
-        />
-        <ResultCard
-          tone="lemon"
-          icon={Utensils}
-          title="吃饭"
-          subtitle={plan.foodTitle}
-          detail={plan.food}
-          chips={state.condition === '速食便利店' ? ['便利店', '即食', '少油甜'] : ['高蛋白', '易消化', '少油甜']}
-          sticker={foodCat}
-          alt="吃饭猫贴纸"
-        />
-        <ResultCard
-          tone="lavender"
-          icon={ShieldCheck}
-          title="最低线"
-          detail="做到这3件事就很棒了"
-          chips={plan.minimum}
-          sticker={okBear}
-          alt="OK小熊贴纸"
-        />
-        <ResultCard
-          tone="pink"
-          icon={Heart}
-          title="不要做"
-          detail="这几件事今天尽量避开"
-          chips={plan.avoid}
-          sticker={confusedFrog}
-          alt="提醒贴纸"
-        />
-      </section>
-    </div>
-  );
-}
-
-function RecordPage({ state }) {
-  const [checks, setChecks] = useLocalStorageState('record-checks', ['训练完成', '喝水完成']);
-  const [energy, setEnergy] = useLocalStorageState('record-energy', '还可以');
-  const [appetite, setAppetite] = useLocalStorageState('record-appetite', '正常吃了');
-  const [careHistory, setCareHistory] = useLocalStorageState('care-history', []);
-  const [saved, setSaved] = useState(() => careHistory.some((entry) => entry.date === localDateKey()));
-  const items = [
-    { label: '训练完成', helper: '按今天计划做了一点', icon: Dumbbell },
-    { label: '吃饭完成', helper: '吃到蛋白质和主食', icon: Utensils },
-    { label: '喝水完成', helper: '今天至少喝到1.5L', icon: ShieldCheck },
-    { label: '没有暴食', helper: '没有靠情绪乱吃', icon: Heart },
-    { label: '没有头晕', helper: '身体状态还稳定', icon: Sparkles },
-  ];
-  const progress = Math.round((checks.length / items.length) * 100);
-  const feedback = buildRecordFeedback(checks, energy, appetite);
-  const companion = recordCompanionText(state.status);
-
-  function markUnsaved() {
-    setSaved(false);
-  }
-
-  function toggle(item) {
-    setChecks((current) => (current.includes(item) ? current.filter((x) => x !== item) : [...current, item]));
-    markUnsaved();
-  }
-
-  function saveTodayRecord() {
-    const date = localDateKey();
-    setCareHistory((current) =>
-      upsertCareRecord(current, {
-        date,
-        status: state.status,
-        time: state.time,
-        condition: state.condition,
-        checks,
-        energy,
-        appetite,
-        savedAt: new Date().toISOString(),
-      }),
-    );
-    setSaved(true);
-  }
-
-  return (
-    <section className="sub-page record-page">
-      <article className="record-status-card">
-        <div className="record-status-copy">
-          <span className="record-status-label">今日状态</span>
-          <p className="record-status-line">{state.status} · {state.time} · {state.condition}</p>
-          <p className="record-companion">{companion}</p>
-        </div>
-        <div className="progress-badge" aria-label={`完成度 ${progress}%`}>
-          <strong>{progress}%</strong>
-          <span>照顾度</span>
-        </div>
-        <Sticker src={healingCat} alt="治愈猫贴纸" className="record-hero-sticker" />
-      </article>
-
-      <section className="record-section-card record-check-section">
-        <div className="record-section-head">
-          <h2>今日完成项</h2>
-          <span>{checks.length}/{items.length}</span>
-        </div>
-        <div className="record-list">
-          {items.map(({ label, helper, icon: Icon }) => {
-            const active = checks.includes(label);
-            return (
-              <button className={`record-row ${active ? 'is-active' : ''}`} key={label} onClick={() => toggle(label)} type="button">
-                <span className="record-row-icon">
-                  <Icon size={18} strokeWidth={2.3} />
-                </span>
-                <span className="record-row-copy">
-                  <strong>{label}</strong>
-                  <small>{helper}</small>
-                </span>
-                <span className="record-status">{active ? '记下来啦' : '轻点一下'}</span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="record-section-card">
-        <h2>身体感觉</h2>
-        <div className="segmented">
-          {['轻松', '还可以', '很累'].map((item) => (
-            <button
-              className={energy === item ? 'is-active' : ''}
-              key={item}
-              onClick={() => {
-                setEnergy(item);
-                markUnsaved();
-              }}
-              type="button"
-            >
-              {item}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="record-section-card">
-        <h2>饮食状态</h2>
-        <div className="segmented wide">
-          {['正常吃了', '吃少了', '有点乱吃'].map((item) => (
-            <button
-              className={appetite === item ? 'is-active' : ''}
-              key={item}
-              onClick={() => {
-                setAppetite(item);
-                markUnsaved();
-              }}
-              type="button"
-            >
-              {item}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <article className="summary-card record-summary">
-        <Sticker src={goodnightSheep} alt="晚安绵羊贴纸" className="summary-sticker" />
-        <span className="record-summary-badge">{feedback.badge}</span>
-        <h2>{feedback.title}</h2>
-        <p>{feedback.body}</p>
-      </article>
-
-      <button className={`record-save ${saved ? 'is-saved' : ''}`} onClick={saveTodayRecord} type="button">
-        <Save size={18} />
-        {saved ? '今日已签到' : '保存记录并签到'}
-      </button>
-    </section>
   );
 }
 
