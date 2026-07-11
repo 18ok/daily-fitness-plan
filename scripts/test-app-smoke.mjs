@@ -80,6 +80,18 @@ try {
 
   await page.getByRole('button', { name: '家里', exact: true }).click();
   await expectVisible(page.locator('.today-panel'), 'Plan after the third explicit answer');
+  await expectVisible(page.locator('.today-strategy'), 'Daily strategy summary');
+  assert.equal(await page.locator('.today-panel .result-card').count(), 4, 'All four Today result cards should remain');
+  assert.equal(await page.locator('.today-panel .card-sticker').count(), 4, 'All four explanatory illustrations should remain');
+
+  const firstSticker = page.locator('.today-panel .card-sticker').first();
+  await firstSticker.evaluate((image) => image.dispatchEvent(new Event('error')));
+  await page.waitForFunction(() => document.querySelectorAll('.today-panel .card-sticker').length === 3);
+  assert.equal(await page.locator('.today-panel .card-sticker').count(), 3, 'A missing illustration should disappear cleanly');
+
+  const confirmBox = await page.getByRole('button', { name: '今天就按这个做', exact: true }).boundingBox();
+  assert.ok(confirmBox, 'Primary confirmation should have a bounding box');
+  assert.ok(confirmBox.width >= 300, 'Primary confirmation should remain easy to tap on a 390px mobile viewport');
   await page.waitForFunction(() => {
     const state = JSON.parse(localStorage.getItem('today-plan-state') || 'null');
     return state?.time === '45分钟' && state.status === '白班' && state.condition === '家里';
