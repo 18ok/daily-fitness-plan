@@ -65,6 +65,12 @@ run('rest plan exact output', () => {
   });
 });
 
+run('invalid persisted selections do not generate a silent default plan', () => {
+  assert.equal(buildPlan('unknown', '白班', '家里'), null);
+  assert.equal(buildPlan('30分钟', 'unknown', '家里'), null);
+  assert.equal(buildPlan('30分钟', '白班', 'unknown'), null);
+});
+
 run('record feedback prioritizes tired energy', () => {
   assert.deepEqual(buildRecordFeedback(['训练完成'], '很累', '正常吃了'), {
     title: '今天适合先恢复',
