@@ -21,27 +21,15 @@
 
 ## 当前停点
 
-Supabase 项目：`energy-plan-app`
-
-项目编号：`iijjfanfqebxfxqadjmi`
-
-SQL 文件：`supabase/experience_feedback.sql`
-
-第一次粘贴 SQL 时，PowerShell 默认编码把中文反馈值变成乱码，Supabase 在第 15 行报语法错误，因此建表没有成功。之后已使用 UTF-8 重新复制并确认三个值为：`适合`、`太难`、`不符合状态`，但关机前尚未确认第二次运行结果。
+- Supabase 项目 `energy-plan-app` 已成功执行 `supabase/experience_feedback.sql`。
+- 权限检查结果为 `permissions_ok = true`：RLS 已开启，`anon` 和 `authenticated` 只有 `INSERT`，没有 `SELECT`、`UPDATE`、`DELETE`，插入策略存在。
+- 已在正式域名用 `30分钟 / 休息日 / 家里` 生成并确认计划。
+- 已提交真实反馈：`适合 / 接续验证 2026-07-11`；页面显示“谢谢你的反馈，已经收到。”，数据库最新一行已核对一致。
+- 已修复手机端弹层操作区、今日计划状态胶囊的垂直对齐，以及远程同步的账号注册流程；移动视口冒烟测试已覆盖这些场景。
 
 ## 下次第一步
 
-1. 用 Edge 登录 Supabase。
-2. 打开 `energy-plan-app` 的 SQL Editor。
-3. 用 UTF-8 读取并执行 `supabase/experience_feedback.sql`。
-4. 运行权限检查，确认 RLS 开启，`anon` 和 `authenticated` 只有 `INSERT`，没有 `SELECT`、`UPDATE`、`DELETE`。
-5. 在 https://app.yuchengmini.cn/ 提交一次真实测试反馈，确认数据库收到一行且页面显示提交成功。
-
-PowerShell 复制 SQL 时必须显式指定 UTF-8：
-
-```powershell
-Get-Content -LiteralPath 'supabase\experience_feedback.sql' -Encoding UTF8 -Raw | Set-Clipboard
-```
+按 `docs/pilot/2026-07-11-friends-round-1.md` 开始邀请 3～5 位女性健身新手进行第一轮手机试用，并按出现人数记录卡点。
 
 ## 后续顺序
 

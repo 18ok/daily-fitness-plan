@@ -231,7 +231,7 @@
 }
 
 .sync-panel-live.is-logged-out {
-  min-height: 220px;
+  min-height: 324px;
 }
 
 .sync-panel-live > div {
@@ -281,6 +281,13 @@
 
 .sync-login-password button {
   width: 100%;
+}
+
+.sync-login-password .sync-auth-mode-toggle {
+  height: 34px;
+  color: #3b9c68;
+  background: transparent;
+  font-size: 12px;
 }
 
 .sync-actions {
@@ -459,13 +466,17 @@
 
 .profile-setting-sheet {
   width: min(430px, 100vw);
-  max-height: 82%;
+  max-height: min(88dvh, 820px);
   overflow-y: auto;
   justify-self: center;
   padding: 10px 18px calc(18px + env(safe-area-inset-bottom, 0px));
   border-radius: 26px 26px 0 0;
   background: #fffdf8;
   box-shadow: 0 -18px 44px rgba(55, 42, 44, 0.18);
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  scroll-padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
 }
 
 .profile-setting-sheet h2 {
@@ -563,13 +574,17 @@
 
 .profile-edit-sheet {
   width: min(430px, 100vw);
-  max-height: 88vh;
+  max-height: min(88dvh, 820px);
   overflow-y: auto;
   justify-self: center;
   padding: 10px 18px calc(18px + env(safe-area-inset-bottom, 0px));
   border-radius: 26px 26px 0 0;
   background: #fffdf8;
   box-shadow: 0 -18px 44px rgba(55, 42, 44, 0.18);
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  scroll-padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
 }
 
 .profile-edit-sheet h2 {

@@ -6,33 +6,6 @@ import { createServer } from 'vite';
 const host = '127.0.0.1';
 const port = 4176;
 const origin = `http://${host}:${port}`;
-const knownLibraryConsoleErrors = [
-  [
-    'In HTML, %s cannot be a descendant of <%s>.',
-    'This will cause a hydration error.%s <button> button ',
-    '',
-    '  <App>',
-    '    <main className="app-stage">',
-    '      <div className={"mobile-s..."}>',
-    '        <Header>',
-    '        <LibraryPage state={{time:"45分钟", ...}} setState={function bound dispatchSetState} ...>',
-    '          <section className="sub-page l...">',
-    '            <div>',
-    '            <article>',
-    '            <div>',
-    '            <div className="template-list">',
-    '>             <button className="template-card" onClick={function onClick} type="button">',
-    '                <div>',
-    '                <Sticker>',
-    '                <div className="template-a...">',
-    '>                 <button onClick={function onClick} type="button">',
-    '                  ...',
-    '        ...',
-    '',
-  ].join('\n'),
-  '<%s> cannot contain a nested %s.\nSee this log for the ancestor stack trace. button <button>',
-];
-
 const server = await createServer({
   root: fileURLToPath(new URL('..', import.meta.url)),
   envFile: false,
@@ -81,6 +54,15 @@ try {
   await page.getByRole('button', { name: '家里', exact: true }).click();
   await expectVisible(page.locator('.today-panel'), 'Plan after the third explicit answer');
   await expectVisible(page.locator('.today-strategy'), 'Daily strategy summary');
+  const summaryTextAlignment = await page.locator('.today-status-summary span').first().evaluate((element) => {
+    const styles = getComputedStyle(element);
+    return { display: styles.display, alignItems: styles.alignItems, lineHeight: styles.lineHeight };
+  });
+  assert.deepEqual(
+    summaryTextAlignment,
+    { display: 'flex', alignItems: 'center', lineHeight: '12px' },
+    'Today status summary text should stay vertically centered',
+  );
   assert.equal(await page.locator('.today-panel .result-card').count(), 4, 'All four Today result cards should remain');
   assert.equal(await page.locator('.today-panel .card-sticker').count(), 4, 'All four explanatory illustrations should remain');
 
@@ -181,11 +163,23 @@ try {
 
   await page.getByRole('button', { name: '计划库', exact: true }).click();
   await expectVisible(page.locator('.library-page'), 'Library page');
-  await page.locator('.template-card').first().click();
+  await page.locator('.template-detail-trigger').first().click();
   await expectVisible(page.locator('.template-detail-sheet'), 'Library detail');
-  await page.getByRole('button', { name: '先看看', exact: true }).click();
+  await page.locator('.template-detail-sheet').evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  const detailActionBox = await page.getByRole('button', { name: '套用这个计划', exact: true }).boundingBox();
+  assert.ok(
+    detailActionBox && detailActionBox.y + detailActionBox.height <= 844,
+    `Template action should remain within the mobile viewport: ${JSON.stringify(detailActionBox)}`,
+  );
+  await page.getByRole('button', { name: '套用这个计划', exact: true }).click();
   await page.locator('.template-detail-sheet').waitFor({ state: 'detached' });
-  console.log('ok - Library detail open and close');
+  await expectVisible(page.getByText(/已套用「/), 'Applied template feedback');
+  await page.evaluate(() => {
+    localStorage.setItem('today-plan-state', JSON.stringify({ time: '45分钟', status: '白班', condition: '家里' }));
+  });
+  console.log('ok - Library detail action remains reachable and applies the template');
 
   await page.getByRole('button', { name: '能量贴纸', exact: true }).click();
   await expectVisible(page.locator('.sticker-page'), 'Sticker page');
@@ -201,11 +195,33 @@ try {
   await expectVisible(page.getByPlaceholder('登录邮箱'), 'Signed-out email field');
   await expectVisible(page.getByPlaceholder('登录密码'), 'Signed-out password field');
   await expectVisible(page.getByRole('button', { name: '登录并同步', exact: true }), 'Signed-out login action');
+  await page.getByRole('button', { name: '还没有账号？创建一个', exact: true }).click();
+  await expectVisible(page.getByPlaceholder('再次输入密码'), 'Registration password confirmation');
+  await expectVisible(page.getByRole('button', { name: '创建账号', exact: true }), 'Registration action');
+  const registrationToggleBox = await page.getByRole('button', { name: '已有账号，去登录', exact: true }).boundingBox();
+  const profileStatsBox = await page.locator('.profile-stats').boundingBox();
+  assert.ok(
+    registrationToggleBox && profileStatsBox && registrationToggleBox.y + registrationToggleBox.height <= profileStatsBox.y,
+    `Registration toggle should not be covered by profile stats: ${JSON.stringify({ registrationToggleBox, profileStatsBox })}`,
+  );
+  await page.getByRole('button', { name: '已有账号，去登录', exact: true }).click();
   await page.getByRole('button', { name: /^提醒时间/ }).click();
   await expectVisible(page.getByRole('dialog', { name: '提醒时间设置', exact: true }), 'Profile settings sheet');
   await page.getByRole('button', { name: '取消', exact: true }).click();
   await page.getByRole('dialog', { name: '提醒时间设置', exact: true }).waitFor({ state: 'detached' });
-  console.log('ok - signed-out sync UI and Profile settings sheet');
+  await page.locator('.profile-edit-trigger').click();
+  await expectVisible(page.getByRole('dialog', { name: '编辑个人资料', exact: true }), 'Profile edit sheet');
+  await page.locator('.profile-edit-sheet').evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  const profileActionBox = await page.getByRole('button', { name: '保存我的资料', exact: true }).boundingBox();
+  assert.ok(
+    profileActionBox && profileActionBox.y + profileActionBox.height <= 844,
+    `Profile action should remain within the mobile viewport: ${JSON.stringify(profileActionBox)}`,
+  );
+  await page.getByRole('button', { name: '取消', exact: true }).click();
+  await page.getByRole('dialog', { name: '编辑个人资料', exact: true }).waitFor({ state: 'detached' });
+  console.log('ok - signed-out sync registration UI and Profile sheet actions');
 
   await page.getByRole('button', { name: '计划日历', exact: true }).click();
   await expectVisible(page.locator('.calendar-page'), 'Calendar page');
@@ -262,12 +278,8 @@ try {
   console.log('ok - Today remains usable when localStorage writes fail');
 
   assert.deepEqual(pageErrors, [], `Page errors:\n${pageErrors.join('\n')}`);
-  assert.deepEqual(
-    consoleErrors,
-    knownLibraryConsoleErrors,
-    `Console errors did not exactly match the known LibraryPage entries:\n${consoleErrors.join('\n')}`,
-  );
-  console.log('ok - exact known LibraryPage console errors observed; no page errors');
+  assert.deepEqual(consoleErrors, [], `Console errors:\n${consoleErrors.join('\n')}`);
+  console.log('ok - no page errors or console errors');
   await context.close();
   console.log('\nAll app smoke checks passed.');
 } finally {

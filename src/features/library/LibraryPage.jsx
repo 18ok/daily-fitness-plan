@@ -63,12 +63,7 @@ export function LibraryPage({ state, setState, setActiveTab }) {
 
       <div className="template-list">
         {visibleTemplates.map((template) => (
-          <button
-            className="template-card"
-            key={template.title}
-            onClick={() => setSelectedTemplate(template)}
-            type="button"
-          >
+          <article className="template-card" key={template.title}>
             <div>
               <h2>{template.title}</h2>
               <span>{template.meta}</span>
@@ -82,17 +77,21 @@ export function LibraryPage({ state, setState, setActiveTab }) {
             <Sticker src={template.sticker} alt={`${template.title}贴纸`} className="template-sticker" />
             <div className="template-actions">
               <button
-                onClick={(event) => {
-                  event.stopPropagation();
-                  applyTemplate(template);
-                }}
+                onClick={() => applyTemplate(template)}
                 type="button"
               >
                 套用
               </button>
-              <ChevronRight size={18} />
+              <button
+                aria-label={`查看${template.title}详情`}
+                className="template-detail-trigger"
+                onClick={() => setSelectedTemplate(template)}
+                type="button"
+              >
+                <ChevronRight size={18} />
+              </button>
             </div>
-          </button>
+          </article>
         ))}
       </div>
 

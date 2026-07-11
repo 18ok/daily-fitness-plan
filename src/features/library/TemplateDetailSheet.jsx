@@ -11,6 +11,7 @@ import {
   Utensils,
 } from 'lucide-react';
 import { Sticker } from '../../components/common/Sticker';
+import { ModalPortal } from '../../components/common/ModalPortal';
 
 const planStepIcons = {
   moon: Moon,
@@ -43,6 +44,7 @@ function PlanStepCard({ step }) {
 
 export function TemplateDetailSheet({ template, onClose, onApply }) {
   return (
+    <ModalPortal>
     <div className="detail-sheet-backdrop" role="presentation" onClick={onClose}>
       <section
         className="template-detail-sheet"
@@ -110,5 +112,6 @@ export function TemplateDetailSheet({ template, onClose, onApply }) {
         </div>
       </section>
     </div>
+    </ModalPortal>
   );
 }

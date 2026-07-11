@@ -14,6 +14,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { downloadSnapshot, restoreLocalSnapshot, uploadSnapshot } from '../../lib/syncSnapshot';
 import { calculateCareStreak, countNightRecoveries, localDateKey } from '../../lib/careHistory';
 import { Sticker } from '../../components/common/Sticker';
+import { ModalPortal } from '../../components/common/ModalPortal';
 
 import logoCat from '../../../assets/stickers/cat-companion/illustrations_clean/02_sailor_flag_cat.png';
 import umbrellaCat from '../../../assets/stickers/cat-companion/illustrations_clean/09_kimono_umbrella_cat.png';
@@ -69,8 +70,10 @@ export function ProfilePage() {
     avatarType: 'preset',
   });
   const [session, setSession] = useState(null);
+  const [authMode, setAuthMode] = useState('signIn');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [loginPasswordConfirm, setLoginPasswordConfirm] = useState('');
   const [syncBusy, setSyncBusy] = useState(false);
   const [syncStatus, setSyncStatus] = useState('登录后可以把计划、记录和个人设置同步到云端。');
   const [cloudSnapshot, setCloudSnapshot] = useState(null);
@@ -197,6 +200,51 @@ export function ProfilePage() {
     }
   }
 
+  async function signUpWithPassword() {
+    if (!supabase) {
+      setSyncStatus('Supabase 还没有配置好。');
+      return;
+    }
+
+    const email = loginEmail.trim();
+    if (!email || !email.includes('@')) {
+      setSyncStatus('请输入正确的邮箱地址。');
+      return;
+    }
+    if (loginPassword.length < 6) {
+      setSyncStatus('密码至少需要6位。');
+      return;
+    }
+    if (loginPassword !== loginPasswordConfirm) {
+      setSyncStatus('两次输入的密码不一致。');
+      return;
+    }
+
+    setSyncBusy(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password: loginPassword,
+        options: { emailRedirectTo: window.location.origin },
+      });
+      if (error) throw error;
+
+      setLoginPassword('');
+      setLoginPasswordConfirm('');
+      if (data.session) {
+        setSession(data.session);
+        setSyncStatus('账号已创建，正在检查云端数据。');
+      } else {
+        setAuthMode('signIn');
+        setSyncStatus('账号已创建，请先到邮箱完成验证，再用邮箱和密码登录。');
+      }
+    } catch (error) {
+      setSyncStatus(`注册失败：${error.message}`);
+    } finally {
+      setSyncBusy(false);
+    }
+  }
+
   async function saveLocalToCloud() {
     const userId = session?.user?.id;
     if (!userId) return;
@@ -312,26 +360,53 @@ export function ProfilePage() {
             <button disabled={syncBusy} onClick={signOut} type="button">退出</button>
           </div>
         ) : (
-          <div className="sync-login-password">
+          <form
+            className="sync-login-password"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (authMode === 'signUp') signUpWithPassword();
+              else signInWithPassword();
+            }}
+          >
             <input
               autoComplete="email"
               inputMode="email"
               onChange={(event) => setLoginEmail(event.target.value)}
-              placeholder="登录邮箱"
+              placeholder={authMode === 'signUp' ? '邮箱地址' : '登录邮箱'}
               type="email"
               value={loginEmail}
             />
             <input
-              autoComplete="current-password"
+              autoComplete={authMode === 'signUp' ? 'new-password' : 'current-password'}
               onChange={(event) => setLoginPassword(event.target.value)}
-              placeholder="登录密码"
+              placeholder={authMode === 'signUp' ? '设置密码（至少6位）' : '登录密码'}
               type="password"
               value={loginPassword}
             />
-            <button disabled={syncBusy} onClick={signInWithPassword} type="button">
-              {syncBusy ? '登录中' : '登录并同步'}
+            {authMode === 'signUp' && (
+              <input
+                autoComplete="new-password"
+                onChange={(event) => setLoginPasswordConfirm(event.target.value)}
+                placeholder="再次输入密码"
+                type="password"
+                value={loginPasswordConfirm}
+              />
+            )}
+            <button disabled={syncBusy} type="submit">
+              {syncBusy ? '处理中' : authMode === 'signUp' ? '创建账号' : '登录并同步'}
             </button>
-          </div>
+            <button
+              className="sync-auth-mode-toggle"
+              onClick={() => {
+                setAuthMode((current) => (current === 'signIn' ? 'signUp' : 'signIn'));
+                setLoginPassword('');
+                setLoginPasswordConfirm('');
+              }}
+              type="button"
+            >
+              {authMode === 'signUp' ? '已有账号，去登录' : '还没有账号？创建一个'}
+            </button>
+          </form>
         )}
       </article>
 
@@ -391,7 +466,7 @@ export function ProfilePage() {
       </article>
 
       {activeSheet === 'reminder' && (
-        <div className="detail-sheet-backdrop" role="presentation" onClick={closeSettingSheet}>
+        <ModalPortal><div className="detail-sheet-backdrop" role="presentation" onClick={closeSettingSheet}>
           <section className="profile-setting-sheet" role="dialog" aria-modal="true" aria-label="提醒时间设置" onClick={(event) => event.stopPropagation()}>
             <div className="sheet-handle" />
             <h2>提醒时间</h2>
@@ -405,11 +480,11 @@ export function ProfilePage() {
             </div>
             <ProfileSheetActions onCancel={closeSettingSheet} onSave={saveReminder} />
           </section>
-        </div>
+        </div></ModalPortal>
       )}
 
       {activeSheet === 'training' && (
-        <div className="detail-sheet-backdrop" role="presentation" onClick={closeSettingSheet}>
+        <ModalPortal><div className="detail-sheet-backdrop" role="presentation" onClick={closeSettingSheet}>
           <section className="profile-setting-sheet" role="dialog" aria-modal="true" aria-label="训练偏好设置" onClick={(event) => event.stopPropagation()}>
             <div className="sheet-handle" />
             <h2>训练偏好</h2>
@@ -440,11 +515,11 @@ export function ProfilePage() {
             </div>
             <ProfileSheetActions onCancel={closeSettingSheet} onSave={saveTraining} />
           </section>
-        </div>
+        </div></ModalPortal>
       )}
 
       {activeSheet === 'food' && (
-        <div className="detail-sheet-backdrop" role="presentation" onClick={closeSettingSheet}>
+        <ModalPortal><div className="detail-sheet-backdrop" role="presentation" onClick={closeSettingSheet}>
           <section className="profile-setting-sheet" role="dialog" aria-modal="true" aria-label="饮食偏好设置" onClick={(event) => event.stopPropagation()}>
             <div className="sheet-handle" />
             <h2>饮食偏好</h2>
@@ -458,22 +533,22 @@ export function ProfilePage() {
             </div>
             <ProfileSheetActions onCancel={closeSettingSheet} onSave={saveFood} />
           </section>
-        </div>
+        </div></ModalPortal>
       )}
 
       {activeSheet === 'sync' && (
-        <div className="detail-sheet-backdrop" role="presentation" onClick={closeSettingSheet}>
+        <ModalPortal><div className="detail-sheet-backdrop" role="presentation" onClick={closeSettingSheet}>
           <section className="profile-setting-sheet" role="dialog" aria-modal="true" aria-label="数据备份" onClick={(event) => event.stopPropagation()}>
             <div className="sheet-handle" />
             <h2>数据备份</h2>
             <p>这个功能后续会接上。现在计划和记录会先保存在你的手机里，刷新也不会丢。</p>
             <button className="profile-sheet-primary" onClick={closeSettingSheet} type="button">知道了</button>
           </section>
-        </div>
+        </div></ModalPortal>
       )}
 
       {editingProfile && profileDraft && (
-        <div className="detail-sheet-backdrop" role="presentation" onClick={closeProfileEdit}>
+        <ModalPortal><div className="detail-sheet-backdrop" role="presentation" onClick={closeProfileEdit}>
           <section className="profile-edit-sheet" role="dialog" aria-modal="true" aria-label="编辑个人资料" onClick={(event) => event.stopPropagation()}>
             <div className="sheet-handle" />
             <h2>编辑个人资料</h2>
@@ -540,7 +615,7 @@ export function ProfilePage() {
 
             <ProfileSheetActions onCancel={closeProfileEdit} onSave={saveProfileEdit} saveLabel="保存我的资料" />
           </section>
-        </div>
+        </div></ModalPortal>
       )}
     </section>
   );

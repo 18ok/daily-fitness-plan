@@ -64,8 +64,8 @@ button:focus-visible {
 
 .mobile-shell {
   width: min(430px, 100vw);
-  height: min(932px, 100vh);
-  min-height: 760px;
+  height: min(932px, 100dvh);
+  min-height: min(760px, 100dvh);
   position: relative;
   overflow: hidden;
   background:
@@ -381,14 +381,20 @@ button:focus-visible {
 
 .today-status-summary span,
 .today-status-summary button {
+  box-sizing: border-box;
   min-height: 34px;
   padding: 0 11px;
   border: 1px solid var(--line);
   border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: var(--surface);
   color: var(--text);
   font-size: 12px;
   font-weight: 720;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .today-status-summary button {
