@@ -69,6 +69,9 @@ try {
   await page.goto(origin, { waitUntil: 'networkidle' });
 
   await expectVisible(page.locator('.selector-panel'), 'Today selector');
+  const todayTouchAction = await page.locator('.page-content').evaluate((element) => getComputedStyle(element).touchAction);
+  assert.match(todayTouchAction, /(^|\s)pan-y(\s|$)/, 'Today content should retain vertical touch scrolling');
+  assert.match(todayTouchAction, /(^|\s)pinch-zoom(\s|$)/, 'Today content should allow pinch zoom');
   await page.getByRole('button', { name: '45分钟', exact: true }).click();
   await page.getByRole('button', { name: '白班', exact: true }).click();
   await page.getByRole('button', { name: '家里', exact: true }).click();

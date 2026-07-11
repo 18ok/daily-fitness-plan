@@ -168,7 +168,7 @@ button:focus-visible {
   overflow-x: hidden;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
+  touch-action: pan-y pinch-zoom;
   padding: 0 20px 112px;
   scrollbar-width: none;
 }
