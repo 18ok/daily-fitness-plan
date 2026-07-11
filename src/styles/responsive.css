@@ -107,7 +107,7 @@
 @media (prefers-reduced-motion: no-preference) {
   .time-chip,
   .option-chip,
-  .generate-button,
+  .confirm-plan,
   .record-item,
   .template-card,
   .peek-sticker,
@@ -118,7 +118,6 @@
 
   .time-chip:hover,
   .option-chip:hover,
-  .generate-button:hover,
   .record-item:hover,
   .template-card:hover {
     transform: translateY(-1px);
@@ -126,7 +125,7 @@
 
   .time-chip:active,
   .option-chip:active,
-  .generate-button:active,
+  .confirm-plan:active,
   .bottom-nav button:active {
     transform: scale(0.98);
   }

@@ -13,12 +13,16 @@ import { TodayPage } from './features/today/TodayPage';
 function App() {
   const [activeTab, setActiveTab] = useState('today');
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [state, setState] = useLocalStorageState('today-plan-state', {
+  const [storedState, setState] = useLocalStorageState('today-plan-state', {
     time: '30分钟',
     status: '夜班后',
     condition: '健身房',
   });
-  const plan = useMemo(() => buildPlan(state.time, state.status, state.condition), [state]);
+  const state = storedState && typeof storedState === 'object' ? storedState : {};
+  const plan = useMemo(
+    () => buildPlan(state.time, state.status, state.condition),
+    [state.condition, state.status, state.time],
+  );
   const isNightRecovery = state.status === '夜班后';
 
   return (

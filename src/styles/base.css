@@ -168,7 +168,7 @@ button:focus-visible {
   overflow-x: hidden;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
+  touch-action: pan-y pinch-zoom;
   padding: 0 20px 112px;
   scrollbar-width: none;
 }
@@ -371,39 +371,64 @@ button:focus-visible {
   box-shadow: 0 4px 10px rgba(235, 101, 124, 0.28);
 }
 
-.generate-button {
-  width: 100%;
-  height: 48px;
-  margin-top: 14px;
-  position: relative;
-  overflow: hidden;
-  display: inline-flex;
+.today-status-summary {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 9px;
-  color: #fff;
-  border-radius: 18px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 44%),
-    linear-gradient(90deg, #f06d82 0%, #f77e91 100%);
-  box-shadow: 0 14px 24px rgba(235, 101, 124, 0.26), 0 1px 0 rgba(255, 255, 255, 0.42) inset;
-  font-size: 17px;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+
+.today-status-summary span,
+.today-status-summary button {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.today-status-summary button {
+  color: var(--pink-deep);
+}
+
+.today-storage-notice {
+  margin: 10px 0;
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: #fff7dd;
+  color: #6f5a22;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.today-strategy {
+  margin-bottom: 10px;
+  padding: 13px 14px;
+  border: 1px solid rgba(237, 199, 211, 0.8);
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fff0f4, #fff9e8);
+}
+
+.today-strategy span {
+  color: var(--pink-deep);
+  font-size: 11px;
   font-weight: 800;
 }
 
-.generate-button::before {
-  content: "";
-  position: absolute;
-  inset: 1px;
-  border-radius: inherit;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 46%);
-  pointer-events: none;
+.today-strategy h2 {
+  margin: 4px 0;
+  font-size: 17px;
+  line-height: 1.35;
 }
 
-.generate-button svg,
-.generate-button span,
-.generate-button {
-  isolation: isolate;
+.today-strategy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .today-panel {
@@ -448,27 +473,95 @@ button:focus-visible {
   font-weight: 560;
 }
 
-.save-plan {
-  flex: 0 0 auto;
-  min-width: 82px;
-  height: 34px;
-  border: 1px solid #d8ddd2;
-  border-radius: 13px;
+.confirm-plan {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  color: #2b2627;
-  background: #fff;
-  font-size: 13px;
-  font-weight: 740;
-  box-shadow: 0 4px 10px rgba(64, 42, 39, 0.045), 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  gap: 8px;
+  border-radius: 16px;
+  background: linear-gradient(90deg, #f06d82, #f77e91);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 820;
+  box-shadow: 0 12px 24px rgba(235, 101, 124, 0.25);
 }
 
-.save-plan.is-saved {
+.confirm-plan.is-confirmed {
   color: #3b9c68;
-  border-color: #a9dfbd;
+  border: 1px solid #a9dfbd;
   background: #effbf4;
+  box-shadow: none;
+}
+
+.today-panel .card-sticker-frame {
+  opacity: 0.94;
+}
+
+.pilot-feedback {
+  margin-top: 12px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.pilot-feedback h3 {
+  margin: 0 0 9px;
+  font-size: 14px;
+}
+
+.pilot-feedback-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+
+.pilot-feedback-options button,
+.pilot-feedback-submit {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text);
+  font-weight: 720;
+}
+
+.pilot-feedback-options button.is-active {
+  border-color: var(--pink);
+  background: #ffe9ef;
+}
+
+.pilot-feedback textarea {
+  width: 100%;
+  min-height: 66px;
+  margin-top: 8px;
+  padding: 10px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text);
+}
+
+.pilot-feedback-submit {
+  width: 100%;
+  margin-top: 8px;
+  color: #fff;
+  background: var(--pink-deep);
+}
+
+.pilot-feedback-submit:disabled {
+  opacity: 0.45;
+}
+
+.pilot-feedback-status {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .result-card {

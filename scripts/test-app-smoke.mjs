@@ -68,10 +68,43 @@ try {
   });
   await page.goto(origin, { waitUntil: 'networkidle' });
 
-  await expectVisible(page.locator('.selector-panel'), 'Today selector');
+  await expectVisible(page.locator('.selector-panel'), 'Today first-visit selector');
+  const todayTouchAction = await page.locator('.page-content').evaluate((element) => getComputedStyle(element).touchAction);
+  assert.match(todayTouchAction, /(^|\s)pan-y(\s|$)/, 'Today content should retain vertical touch scrolling');
+  assert.match(todayTouchAction, /(^|\s)pinch-zoom(\s|$)/, 'Today content should allow pinch zoom');
+  assert.equal(await page.locator('.today-panel').count(), 0, 'First visit should hide the plan before explicit answers');
+
   await page.getByRole('button', { name: '45分钟', exact: true }).click();
   await page.getByRole('button', { name: '白班', exact: true }).click();
+  assert.equal(await page.locator('.today-panel').count(), 0, 'Two answers should not reveal a plan');
+
   await page.getByRole('button', { name: '家里', exact: true }).click();
+  await expectVisible(page.locator('.today-panel'), 'Plan after the third explicit answer');
+  await expectVisible(page.locator('.today-strategy'), 'Daily strategy summary');
+  assert.equal(await page.locator('.today-panel .result-card').count(), 4, 'All four Today result cards should remain');
+  assert.equal(await page.locator('.today-panel .card-sticker').count(), 4, 'All four explanatory illustrations should remain');
+
+  const firstSticker = page.locator('.today-panel .card-sticker').first();
+  await firstSticker.evaluate((image) => image.dispatchEvent(new Event('error')));
+  await page.waitForFunction(() => document.querySelectorAll('.today-panel .card-sticker').length === 3);
+  assert.equal(await page.locator('.today-panel .card-sticker').count(), 3, 'A missing illustration should disappear cleanly');
+
+  const confirmBox = await page.getByRole('button', { name: '今天就按这个做', exact: true }).boundingBox();
+  assert.ok(confirmBox, 'Primary confirmation should have a bounding box');
+  assert.ok(confirmBox.width >= 300, 'Primary confirmation should remain easy to tap on a 390px mobile viewport');
+  const actionOverlapsPlanCard = await page.evaluate(() => {
+    const actionRect = document.querySelector('.confirm-plan').getBoundingClientRect();
+    return [...document.querySelectorAll('.today-panel .result-card')].some((card) => {
+      const cardRect = card.getBoundingClientRect();
+      return !(
+        actionRect.bottom <= cardRect.top ||
+        actionRect.top >= cardRect.bottom ||
+        actionRect.right <= cardRect.left ||
+        actionRect.left >= cardRect.right
+      );
+    });
+  });
+  assert.equal(actionOverlapsPlanCard, false, 'Primary confirmation must not cover any plan card');
   await page.waitForFunction(() => {
     const state = JSON.parse(localStorage.getItem('today-plan-state') || 'null');
     return state?.time === '45分钟' && state.status === '白班' && state.condition === '家里';
@@ -79,14 +112,41 @@ try {
   assert.deepEqual(
     await page.evaluate(() => JSON.parse(localStorage.getItem('today-plan-state'))),
     { time: '45分钟', status: '白班', condition: '家里' },
-    'Today selections should persist before generation',
+    'Today selections should persist before confirmation',
   );
-  await page.getByRole('button', { name: '生成今日计划', exact: true }).click();
-  await expectVisible(page.getByRole('button', { name: '今日计划已生成', exact: true }), 'Generated-plan state');
-  await page.getByRole('button', { name: '保存计划', exact: true }).click();
-  await expectVisible(page.getByRole('button', { name: '已保存', exact: true }), 'Saved-plan state');
+
+  assert.deepEqual(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('daily-plan-history') || '[]')),
+    [],
+    'Preview should not write history before confirmation',
+  );
+
+  await page.getByRole('button', { name: '今天就按这个做', exact: true }).click();
+  await expectVisible(page.getByRole('button', { name: '今天计划已确认', exact: true }), 'Confirmed plan state');
   await page.waitForFunction(() => JSON.parse(localStorage.getItem('daily-plan-history') || '[]')[0]?.saved === true);
-  console.log('ok - Today generation and persistence');
+
+  const confirmedHistory = await page.evaluate(() => JSON.parse(localStorage.getItem('daily-plan-history')));
+  assert.equal(confirmedHistory.length, 1, 'Confirmation should write one same-day entry');
+  assert.deepEqual(confirmedHistory[0].selections, { time: '45分钟', status: '白班', condition: '家里' });
+  assert.equal(
+    await page.getByRole('button', { name: '今天计划已确认', exact: true }).isDisabled(),
+    true,
+    'Confirmed action should be disabled instead of toggling back to unsaved',
+  );
+  assert.equal(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('daily-plan-history')).length),
+    1,
+    'Confirmed state must keep one same-day entry',
+  );
+  console.log('ok - first-visit Today preview and one-tap confirmation');
+
+  await expectVisible(page.getByText('这个计划适合你今天吗？', { exact: true }), 'Pilot feedback prompt');
+  await page.getByRole('button', { name: '太难', exact: true }).click();
+  await page.getByPlaceholder('可以补充一句，选填').fill('动作说明还不够具体');
+  await page.getByRole('button', { name: '提交反馈', exact: true }).click();
+  await expectVisible(page.getByText('反馈已保存在本机，联网后会自动提交。', { exact: true }), 'Queued feedback state');
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('today-plan-feedback-pending') || 'null')?.rating === '太难');
+  console.log('ok - anonymous pilot feedback queues without Supabase');
 
   await page.getByRole('button', { name: '记录', exact: true }).click();
   await expectVisible(page.locator('.record-page'), 'Record page');
@@ -168,8 +228,10 @@ try {
   }));
   assert.deepEqual(storageAfterReload, storageBeforeReload, 'Reload should preserve generated plans and saved records');
   assert.equal(storageAfterReload.clearCount, '1', 'localStorage should be cleared only once');
-  await expectVisible(page.getByRole('button', { name: '今日计划已生成', exact: true }), 'Restored generated plan');
-  await expectVisible(page.getByRole('button', { name: '已保存', exact: true }), 'Restored saved plan');
+  await expectVisible(page.locator('.today-status-summary'), 'Returning selection summary');
+  await expectVisible(page.locator('.today-panel'), 'Returning automatic plan preview');
+  await expectVisible(page.getByRole('button', { name: '今天计划已确认', exact: true }), 'Restored confirmation state');
+  assert.equal(await page.locator('.selector-panel').count(), 0, 'Returning users should not see expanded selectors by default');
   await page.getByRole('button', { name: '记录', exact: true }).click();
   await expectVisible(page.getByRole('button', { name: '今日已签到', exact: true }), 'Restored saved record');
   console.log('ok - refresh restoration without clearing storage');
@@ -182,6 +244,22 @@ try {
   assert.equal(shellBox.x, 425, 'Desktop shell should be horizontally centered');
   assert.equal(shellBox.y, 34, 'Desktop shell should be vertically centered');
   console.log('ok - desktop framing');
+
+  const storageFailureContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const storageFailurePage = await storageFailureContext.newPage();
+  await storageFailurePage.addInitScript(() => {
+    localStorage.clear();
+    Storage.prototype.setItem = () => {
+      throw new DOMException('Storage disabled for smoke test', 'QuotaExceededError');
+    };
+  });
+  await storageFailurePage.goto(origin, { waitUntil: 'networkidle' });
+  await expectVisible(
+    storageFailurePage.getByText('本次计划可以查看，但当前浏览器无法长期保存。', { exact: true }),
+    'Storage-unavailable notice',
+  );
+  await storageFailureContext.close();
+  console.log('ok - Today remains usable when localStorage writes fail');
 
   assert.deepEqual(pageErrors, [], `Page errors:\n${pageErrors.join('\n')}`);
   assert.deepEqual(

@@ -66,14 +66,19 @@ const planLibrary = {
   },
 };
 
+const supportedStatuses = new Set(['白班', '夜班后', '休息日', '很累']);
+
 function conditionKey(condition) {
   if (condition === '健身房') return 'gym';
   if (condition === '家里') return 'home';
-  return 'store';
+  if (condition === '速食便利店') return 'store';
+  return null;
 }
 
 function buildPlan(time, status, condition) {
-  const base = planLibrary[time][conditionKey(condition)];
+  const key = conditionKey(condition);
+  if (!planLibrary[time] || !key || !supportedStatuses.has(status)) return null;
+  const base = planLibrary[time][key];
   const nightShift = status === '夜班后';
   const tired = status === '很累';
   const rest = status === '休息日';

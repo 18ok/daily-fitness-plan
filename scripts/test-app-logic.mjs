@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict';
 import { buildPlan } from '../src/features/today/planBuilder.js';
+import {
+  buildPilotFeedback,
+  createPilotFeedbackId,
+  submitPilotFeedback,
+} from '../src/features/today/pilotFeedback.js';
 import { buildRecordFeedback, recordCompanionText } from '../src/features/record/recordFeedback.js';
 
 function run(name, fn) {
@@ -65,6 +70,12 @@ run('rest plan exact output', () => {
   });
 });
 
+run('invalid persisted selections do not generate a silent default plan', () => {
+  assert.equal(buildPlan('unknown', '白班', '家里'), null);
+  assert.equal(buildPlan('30分钟', 'unknown', '家里'), null);
+  assert.equal(buildPlan('30分钟', '白班', 'unknown'), null);
+});
+
 run('record feedback prioritizes tired energy', () => {
   assert.deepEqual(buildRecordFeedback(['训练完成'], '很累', '正常吃了'), {
     title: '今天适合先恢复',
@@ -93,6 +104,80 @@ run('chaotic appetite exact output', () => {
     body: '没关系，下一餐回到舒服一点的节奏就好。不是失败，只是今天状态如此。',
     badge: '身体还稳定，这就很好',
   });
+});
+
+run('pilot feedback identity is stable per exact plan', () => {
+  const input = {
+    clientId: 'client-123',
+    date: '2026-07-11',
+    contentVersion: 1,
+    selections: { time: '30分钟', status: '白班', condition: '家里' },
+  };
+  assert.equal(
+    createPilotFeedbackId(input),
+    'client-123|2026-07-11|1|30分钟|白班|家里',
+  );
+});
+
+run('pilot feedback payload excludes personal and cycle data', () => {
+  assert.deepEqual(
+    buildPilotFeedback({
+      clientFeedbackId: 'client-123|2026-07-11|1|30分钟|白班|家里',
+      rating: '太难',
+      note: '  动作说明还不够具体。  ',
+      selections: { time: '30分钟', status: '白班', condition: '家里' },
+      contentVersion: 1,
+      submittedAt: '2026-07-11T04:00:00.000Z',
+    }),
+    {
+      client_feedback_id: 'client-123|2026-07-11|1|30分钟|白班|家里',
+      rating: '太难',
+      note: '动作说明还不够具体。',
+      time_choice: '30分钟',
+      status_choice: '白班',
+      condition_choice: '家里',
+      content_version: 1,
+      submitted_at: '2026-07-11T04:00:00.000Z',
+    },
+  );
+});
+
+run('pilot feedback rejects unknown ratings and long notes', () => {
+  const base = {
+    clientFeedbackId: 'feedback-id',
+    selections: { time: '30分钟', status: '白班', condition: '家里' },
+    contentVersion: 1,
+    submittedAt: '2026-07-11T04:00:00.000Z',
+  };
+  assert.throws(() => buildPilotFeedback({ ...base, rating: '一般', note: '' }), /Unsupported feedback rating/);
+  assert.throws(() => buildPilotFeedback({ ...base, rating: '适合', note: 'x'.repeat(201) }), /Feedback note is too long/);
+});
+
+async function runAsync(name, fn) {
+  try {
+    await fn();
+    console.log(`ok - ${name}`);
+  } catch (error) {
+    console.error(`fail - ${name}`);
+    throw error;
+  }
+}
+
+await runAsync('pilot feedback repository inserts once', async () => {
+  const calls = [];
+  const client = {
+    from(table) {
+      return {
+        async insert(payload) {
+          calls.push({ table, payload });
+          return { error: null };
+        },
+      };
+    },
+  };
+  const payload = { client_feedback_id: 'feedback-id', rating: '适合' };
+  await submitPilotFeedback(client, payload);
+  assert.deepEqual(calls, [{ table: 'experience_feedback', payload }]);
 });
 
 console.log('\nAll app logic tests passed.');
