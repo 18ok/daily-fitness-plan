@@ -35,6 +35,7 @@ const knownLibraryConsoleErrors = [
 
 const server = await createServer({
   root: fileURLToPath(new URL('..', import.meta.url)),
+  envFile: false,
   server: { host, port, strictPort: true },
 });
 let browser;
