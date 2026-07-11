@@ -7,7 +7,11 @@
     "dev": "vite --host 0.0.0.0 --port 5174",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test:cycle": "node scripts/test-cycle-tracking.mjs"
+    "test:cycle": "node scripts/test-cycle-tracking.mjs",
+    "test:app-logic": "node scripts/test-app-logic.mjs",
+    "test:smoke": "node scripts/test-app-smoke.mjs",
+    "check:maintenance-diff": "node scripts/check-maintenance-diff.mjs",
+    "verify:maintenance": "npm run test:app-logic && npm run test:cycle && npm run test:smoke && npm run check:maintenance-diff && npm run build"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.1",

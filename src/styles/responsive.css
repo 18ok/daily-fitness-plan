@@ -1,0 +1,175 @@
+
+@media (max-width: 520px) {
+  .mobile-shell {
+    width: 100vw;
+    height: 100dvh;
+    min-height: 0;
+    box-shadow: none;
+  }
+
+  .app-header {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .page-content,
+  .sub-page {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .cycle-editor-backdrop {
+    padding: 0;
+  }
+
+  .cycle-editor {
+    max-height: 86vh;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 24px 24px 0 0;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 380px) {
+  .sync-actions {
+    gap: 6px;
+  }
+
+  .sync-actions button {
+    height: 36px;
+    padding: 0 5px;
+    font-size: 11px;
+  }
+
+  .time-grid,
+  .option-grid.four {
+    gap: 7px;
+  }
+
+  .time-chip,
+  .option-chip {
+    font-size: 13px;
+  }
+
+  .result-card {
+    grid-template-columns: 42px 1fr 48px;
+  }
+
+  .card-sticker-frame {
+    width: 54px;
+    height: 54px;
+    border-radius: 18px;
+  }
+
+  .card-sticker {
+    width: 48px;
+    height: 48px;
+  }
+
+  .energy-hero {
+    grid-template-columns: minmax(0, 1fr) 82px;
+    padding: 16px 14px;
+  }
+
+  .today-sticker-card {
+    border-radius: 20px;
+  }
+
+  .today-sticker-card .sticker {
+    width: 60px;
+    height: 60px;
+  }
+
+  .today-sticker-card span {
+    display: none;
+  }
+
+  .favorite-sticker-chip {
+    flex-basis: 70px;
+  }
+
+  .calendar-board {
+    padding: 11px;
+  }
+
+  .calendar-grid {
+    gap: 2px;
+  }
+
+  .calendar-day {
+    border-radius: 11px;
+    font-size: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .time-chip,
+  .option-chip,
+  .generate-button,
+  .record-item,
+  .template-card,
+  .peek-sticker,
+  .card-sticker-frame,
+  .bottom-nav button {
+    transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+  }
+
+  .time-chip:hover,
+  .option-chip:hover,
+  .generate-button:hover,
+  .record-item:hover,
+  .template-card:hover {
+    transform: translateY(-1px);
+  }
+
+  .time-chip:active,
+  .option-chip:active,
+  .generate-button:active,
+  .bottom-nav button:active {
+    transform: scale(0.98);
+  }
+
+  .peek-sticker {
+    animation: sticker-breathe 5.2s ease-in-out infinite;
+  }
+
+  .card-sticker-frame {
+    animation: sticker-float 6s ease-in-out infinite;
+  }
+
+  .result-card:nth-of-type(2) .card-sticker-frame {
+    animation-delay: 0.7s;
+  }
+
+  .result-card:nth-of-type(3) .card-sticker-frame {
+    animation-delay: 1.2s;
+  }
+
+  .result-card:nth-of-type(4) .card-sticker-frame {
+    animation-delay: 1.8s;
+  }
+}
+
+@keyframes sticker-float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+
+  50% {
+    translate: 0 -3px;
+  }
+}
+
+@keyframes sticker-breathe {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+
+  50% {
+    translate: 0 -2px;
+  }
+}

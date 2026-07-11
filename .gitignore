@@ -29,3 +29,6 @@ devserver.out.log
 /assets/stickers/**/cells_with_labels/
 /assets/stickers/**/illustrations/
 /assets/stickers/**/contact_sheet*.png
+
+# Local browser verification output
+/artifacts/
