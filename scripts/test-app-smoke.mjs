@@ -127,6 +127,14 @@ try {
   );
   console.log('ok - first-visit Today preview and one-tap confirmation');
 
+  await expectVisible(page.getByText('这个计划适合你今天吗？', { exact: true }), 'Pilot feedback prompt');
+  await page.getByRole('button', { name: '太难', exact: true }).click();
+  await page.getByPlaceholder('可以补充一句，选填').fill('动作说明还不够具体');
+  await page.getByRole('button', { name: '提交反馈', exact: true }).click();
+  await expectVisible(page.getByText('反馈已保存在本机，联网后会自动提交。', { exact: true }), 'Queued feedback state');
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('today-plan-feedback-pending') || 'null')?.rating === '太难');
+  console.log('ok - anonymous pilot feedback queues without Supabase');
+
   await page.getByRole('button', { name: '记录', exact: true }).click();
   await expectVisible(page.locator('.record-page'), 'Record page');
   await page.getByRole('button', { name: /^吃饭完成/ }).click();

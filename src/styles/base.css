@@ -503,6 +503,70 @@ button:focus-visible {
   opacity: 0.94;
 }
 
+.pilot-feedback {
+  margin-top: 12px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.pilot-feedback h3 {
+  margin: 0 0 9px;
+  font-size: 14px;
+}
+
+.pilot-feedback-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+
+.pilot-feedback-options button,
+.pilot-feedback-submit {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text);
+  font-weight: 720;
+}
+
+.pilot-feedback-options button.is-active {
+  border-color: var(--pink);
+  background: #ffe9ef;
+}
+
+.pilot-feedback textarea {
+  width: 100%;
+  min-height: 66px;
+  margin-top: 8px;
+  padding: 10px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text);
+}
+
+.pilot-feedback-submit {
+  width: 100%;
+  margin-top: 8px;
+  color: #fff;
+  background: var(--pink-deep);
+}
+
+.pilot-feedback-submit:disabled {
+  opacity: 0.45;
+}
+
+.pilot-feedback-status {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .result-card {
   min-height: 88px;
   position: relative;

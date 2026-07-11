@@ -17,6 +17,7 @@ import { samePlanSelections, upsertDailyPlan } from '../../lib/dailyPlanHistory'
 import { ResultCard } from '../../components/common/ResultCard';
 import { ChoiceGroup, OptionChip } from '../../components/common/SelectionControls';
 import { Sticker } from '../../components/common/Sticker';
+import { PilotFeedbackPrompt } from './PilotFeedbackPrompt';
 
 import planCat from '../../../assets/stickers/cat-companion/illustrations_clean/05_magic_wand_cat.png';
 import foodCat from '../../../assets/stickers/cat-companion/illustrations_clean/04_sunflower_teddy_cat.png';
@@ -222,6 +223,12 @@ export function TodayPage({ state, setState, plan }) {
             <Save size={17} />
             {confirmed ? '今天计划已确认' : '今天就按这个做'}
           </button>
+          <PilotFeedbackPrompt
+            confirmed={confirmed}
+            contentVersion={1}
+            date={today}
+            selections={state}
+          />
         </section>
       )}
     </div>
