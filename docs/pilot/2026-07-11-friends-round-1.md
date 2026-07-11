@@ -2,7 +2,7 @@
 
 ## 试用入口
 
-https://18ok.github.io/daily-fitness-plan/
+https://app.yuchengmini.cn/
 
 本轮只邀请 3～5 位平时主要使用手机、对健身不熟悉的女性朋友。请她们使用自己的手机和常用浏览器，不要先讲解页面怎么操作。
 
