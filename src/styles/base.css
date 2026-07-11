@@ -474,9 +474,6 @@ button:focus-visible {
 }
 
 .confirm-plan {
-  position: sticky;
-  bottom: 8px;
-  z-index: 8;
   width: 100%;
   min-height: 48px;
   margin-top: 12px;

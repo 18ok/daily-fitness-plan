@@ -92,6 +92,19 @@ try {
   const confirmBox = await page.getByRole('button', { name: '今天就按这个做', exact: true }).boundingBox();
   assert.ok(confirmBox, 'Primary confirmation should have a bounding box');
   assert.ok(confirmBox.width >= 300, 'Primary confirmation should remain easy to tap on a 390px mobile viewport');
+  const actionOverlapsPlanCard = await page.evaluate(() => {
+    const actionRect = document.querySelector('.confirm-plan').getBoundingClientRect();
+    return [...document.querySelectorAll('.today-panel .result-card')].some((card) => {
+      const cardRect = card.getBoundingClientRect();
+      return !(
+        actionRect.bottom <= cardRect.top ||
+        actionRect.top >= cardRect.bottom ||
+        actionRect.right <= cardRect.left ||
+        actionRect.left >= cardRect.right
+      );
+    });
+  });
+  assert.equal(actionOverlapsPlanCard, false, 'Primary confirmation must not cover any plan card');
   await page.waitForFunction(() => {
     const state = JSON.parse(localStorage.getItem('today-plan-state') || 'null');
     return state?.time === '45分钟' && state.status === '白班' && state.condition === '家里';
