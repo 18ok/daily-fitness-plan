@@ -96,7 +96,12 @@ export function availableDumbbellLoads(profile) {
   const equipment = profile && typeof profile === 'object' && profile.equipment && typeof profile.equipment === 'object'
     ? profile.equipment
     : {};
-  return normalizedPresetLoads(equipment.dumbbellKg);
+  const adjustableRange = normalizedAdjustableRange(equipment.adjustableDumbbellRange);
+  return [...new Set([
+    ...normalizedPresetLoads(equipment.dumbbellKg),
+    ...normalizedCustomLoads(equipment.customDumbbellKg),
+    ...(adjustableRange ? [adjustableRange.minKg, adjustableRange.maxKg] : []),
+  ])].sort((left, right) => left - right);
 }
 
 export function normalizeBodyTrendHistory(value) {

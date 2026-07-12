@@ -66,6 +66,25 @@ run('training profile preserves normalized local-only setup details', () => {
   assert.deepEqual(profile.equipment.adjustableDumbbellRange, { minKg: 2, maxKg: 24 });
 });
 
+run('available dumbbell loads keeps valid custom weights and adjustable endpoints', () => {
+  const profile = normalizeTrainingProfile({
+    equipment: {
+      dumbbellKg: [3, 2],
+      customDumbbellKg: [2.5, 3, -1, 101],
+      adjustableDumbbellRange: { minKg: 1.5, maxKg: 6 },
+    },
+  });
+
+  assert.deepEqual(availableDumbbellLoads(profile), [1.5, 2, 2.5, 3, 6]);
+  assert.equal(availableDumbbellLoads(profile).includes(4), false);
+  assert.deepEqual(availableDumbbellLoads(normalizeTrainingProfile({
+    equipment: { customDumbbellKg: [2.5] },
+  })), [2.5]);
+  assert.deepEqual(availableDumbbellLoads(normalizeTrainingProfile({
+    equipment: { adjustableDumbbellRange: { minKg: 2, maxKg: 6 } },
+  })), [2, 6]);
+});
+
 run('body trend history removes invalid dates and weights', () => {
   assert.deepEqual(normalizeBodyTrendHistory([
     { date: '2026-07-01', weightKg: 60 },

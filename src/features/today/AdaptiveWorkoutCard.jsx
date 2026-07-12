@@ -125,12 +125,27 @@ export function AdaptiveWorkoutCard({ exerciseHistory, onSaveLog, profile, worko
                   </button>
                 </div>
 
+                <div className="adaptive-movement-details">
+                  <p className="adaptive-suggestion">今天建议：{movement.suggestedLoad.guidance}</p>
+                  <p className="adaptive-reason">为什么这样安排：{movement.why}</p>
+                  {movement.replacement && <p className="adaptive-replacement">如果不舒服，换成：{movement.replacement}</p>}
+                  <ol className="adaptive-history" aria-label={`${movement.name}最近三次记录`}>
+                    {history.length > 0 ? history.map((log) => (
+                      <li key={`${log.exerciseId}-${log.date}`}>
+                        <span>{log.date}</span>
+                        <span>{resultText(log).replace('上次：', '')}</span>
+                      </li>
+                    )) : (
+                      <li>
+                        <span>最近三次</span>
+                        <span>还没有记录</span>
+                      </li>
+                    )}
+                  </ol>
+                </div>
+
                 {isOpen && (
                   <div className="adaptive-movement-form">
-                    <p className="adaptive-suggestion">今天建议：{movement.suggestedLoad.guidance}</p>
-                    <p className="adaptive-reason">为什么这样安排：{movement.why}</p>
-                    {movement.replacement && <p className="adaptive-replacement">如果不舒服，换成：{movement.replacement}</p>}
-
                     <fieldset className="adaptive-fieldset">
                       <legend>实际重量</legend>
                       {needsWeight ? (
@@ -216,17 +231,6 @@ export function AdaptiveWorkoutCard({ exerciseHistory, onSaveLog, profile, worko
                       保存这次动作
                     </button>
                     {draft.saved && <p className="adaptive-saved">已保存到这台设备。</p>}
-
-                    {history.length > 0 && (
-                      <ol className="adaptive-history" aria-label={`${movement.name}最近三次记录`}>
-                        {history.map((log) => (
-                          <li key={`${log.exerciseId}-${log.date}`}>
-                            <span>{log.date}</span>
-                            <span>{resultText(log).replace('上次：', '')}</span>
-                          </li>
-                        ))}
-                      </ol>
-                    )}
                   </div>
                 )}
               </article>

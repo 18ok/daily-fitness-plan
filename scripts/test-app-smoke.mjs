@@ -38,9 +38,27 @@ try {
       localStorage.setItem('training-profile', JSON.stringify({
         goals: ['habit'],
         experienceLevel: 'new',
-        equipment: { bodyweight: true, dumbbellKg: [2] },
+        equipment: {
+          bodyweight: true,
+          customDumbbellKg: [2.5],
+          adjustableDumbbellRange: { minKg: 2, maxKg: 6 },
+        },
         safetyFlag: 'none',
       }));
+      localStorage.setItem('exercise-session-history', JSON.stringify([
+        {
+          exerciseId: 'dumbbell_row', date: '2026-07-11', feedback: 'too_easy', loadKg: 2,
+          sets: [{ plannedReps: 8, completedReps: 8 }, { plannedReps: 8, completedReps: 8 }], note: '很稳',
+        },
+        {
+          exerciseId: 'dumbbell_row', date: '2026-07-10', feedback: 'just_right', loadKg: 2,
+          sets: [{ plannedReps: 8, completedReps: 8 }, { plannedReps: 8, completedReps: 8 }], note: '',
+        },
+        {
+          exerciseId: 'dumbbell_row', date: '2026-07-09', feedback: 'just_right', loadKg: 2,
+          sets: [{ plannedReps: 8, completedReps: 8 }, { plannedReps: 8, completedReps: 8 }], note: '',
+        },
+      ]));
       sessionStorage.setItem('app-smoke-storage-initialized', 'true');
       sessionStorage.setItem('app-smoke-storage-clear-count', '1');
     }
@@ -129,7 +147,13 @@ try {
   console.log('ok - first-visit Today preview and one-tap confirmation');
 
   await expectVisible(page.getByText('今天做什么？', { exact: true }), 'Adaptive workout card');
+  const firstAdaptiveMovement = page.locator('.adaptive-movement').first();
+  await expectVisible(firstAdaptiveMovement.locator('.adaptive-suggestion'), 'Immediate adaptive suggestion');
+  await expectVisible(firstAdaptiveMovement.locator('.adaptive-reason'), 'Immediate adaptive reason');
+  await expectVisible(firstAdaptiveMovement.getByText('2026-07-11', { exact: true }), 'Immediate recent exercise history');
   await page.getByRole('button', { name: '记录第 1 个动作', exact: true }).click();
+  await expectVisible(page.getByRole('button', { name: '2.5kg', exact: true }), 'Owned custom dumbbell weight');
+  await expectVisible(page.getByRole('button', { name: '6kg', exact: true }), 'Owned adjustable dumbbell maximum');
   await page.getByRole('button', { name: '2kg', exact: true }).click();
   await page.getByRole('button', { name: '第 1 组完成 8 次', exact: true }).click();
   await page.getByRole('button', { name: '第 2 组完成 8 次', exact: true }).click();
