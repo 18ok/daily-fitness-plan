@@ -242,6 +242,7 @@ try {
 
   await page.getByRole('button', { name: '计划日历', exact: true }).click();
   await expectVisible(page.locator('.calendar-page'), 'Calendar page');
+  await expectVisible(page.getByText('经期和身体状态记录仅保存在这台设备。', { exact: true }), 'Local-only cycle privacy notice');
   await page.getByRole('button', { name: '记录这天的身体情况', exact: true }).click();
   await expectVisible(page.getByRole('dialog', { name: '身体情况记录', exact: true }), 'Cycle editor');
   await page.getByRole('button', { name: '关闭', exact: true }).click();

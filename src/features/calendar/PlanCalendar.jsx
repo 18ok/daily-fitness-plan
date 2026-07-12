@@ -26,6 +26,7 @@ import {
   fetchCycleLogs,
   upsertCycleLogRemote,
 } from '../../lib/cycleTrackingRepository';
+import { canSyncCycleLogs, normalizeCycleSyncSettings } from '../../lib/cycleSyncConsent';
 import { supabase } from '../../lib/supabaseClient';
 
 const weekdays = ['一', '二', '三', '四', '五', '六', '日'];
@@ -82,6 +83,7 @@ export function PlanCalendar() {
   const [planHistory] = useLocalStorageState('daily-plan-history', []);
   const [careHistory] = useLocalStorageState('care-history', []);
   const [cycleLogs, setCycleLogs] = useLocalStorageState('cycle-logs', []);
+  const [cycleSettings, setCycleSettings] = useLocalStorageState('cycle-settings', { cloudSyncConsent: false });
   const today = useMemo(() => new Date(), []);
   const todayKey = localDateKey(today);
   const [visibleMonth, setVisibleMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
@@ -94,6 +96,8 @@ export function PlanCalendar() {
 
   const days = useMemo(() => monthCalendarDays(visibleMonth), [visibleMonth]);
   const normalizedCycleLogs = useMemo(() => normalizeCycleLogs(cycleLogs), [cycleLogs]);
+  const normalizedCycleSettings = useMemo(() => normalizeCycleSyncSettings(cycleSettings), [cycleSettings]);
+  const cycleCloudSyncEnabled = canSyncCycleLogs(signedIn, normalizedCycleSettings);
   const cycleByDate = useMemo(
     () => new Map(normalizedCycleLogs.map((entry) => [entry.date, entry])),
     [normalizedCycleLogs],
@@ -116,17 +120,28 @@ export function PlanCalendar() {
   useEffect(() => {
     let active = true;
 
-    async function loadCloudLogs() {
+    async function loadSession() {
       if (!supabase) return;
       const { data } = await supabase.auth.getSession();
       if (!active || !data.session) return;
       setSignedIn(true);
+    }
 
+    loadSession();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadCloudLogs() {
+      if (!cycleCloudSyncEnabled) return;
       try {
         const remoteLogs = await fetchCycleLogs();
         if (!active) return;
-        const merged = normalizeCycleLogs([...normalizedCycleLogs, ...remoteLogs]);
-        setCycleLogs(merged);
+        setCycleLogs((current) => normalizeCycleLogs([...current, ...remoteLogs]));
         setSyncMessage(remoteLogs.length ? '经期记录已与云端同步' : '');
       } catch {
         if (active) setSyncMessage('暂时无法读取云端，本机记录仍可正常使用');
@@ -137,9 +152,7 @@ export function PlanCalendar() {
     return () => {
       active = false;
     };
-    // Only hydrate when the calendar opens; local updates are handled explicitly below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [cycleCloudSyncEnabled, setCycleLogs]);
 
   function moveMonth(amount) {
     const next = shiftMonth(visibleMonth, amount);
@@ -177,6 +190,13 @@ export function PlanCalendar() {
     }));
   }
 
+  function updateCloudSyncConsent(enabled) {
+    setCycleSettings({ cloudSyncConsent: enabled === true });
+    setSyncMessage(enabled
+      ? '已允许同步；云端仅会保存你之后明确记录的经期和身体状态。'
+      : '已关闭云端同步，新的经期和身体状态记录仅保存在这台设备。');
+  }
+
   async function saveCycleLog() {
     if (!form.bleedingLevel && form.symptoms.length === 0 && !form.note.trim()) {
       setSyncMessage('至少选择一项情况，或者写下一句身体感受');
@@ -194,7 +214,7 @@ export function PlanCalendar() {
     setSaving(true);
     setEditorOpen(false);
 
-    if (signedIn) {
+    if (cycleCloudSyncEnabled) {
       try {
         await upsertCycleLogRemote(entry);
         setSyncMessage('已保存，并同步到云端');
@@ -202,7 +222,9 @@ export function PlanCalendar() {
         setSyncMessage('已保存在本机，云端稍后再同步');
       }
     } else {
-      setSyncMessage('已保存在本机，登录后可同步到云端');
+      setSyncMessage(signedIn
+        ? '已保存在本机；你尚未同意同步到云端。'
+        : '已保存在本机，登录后可选择是否同步到云端。');
     }
 
     setSaving(false);
@@ -214,7 +236,7 @@ export function PlanCalendar() {
     setSaving(true);
     setEditorOpen(false);
 
-    if (signedIn) {
+    if (cycleCloudSyncEnabled) {
       try {
         await deleteCycleLogRemote(selectedDate);
         setSyncMessage('这天的经期记录已删除');
@@ -222,7 +244,9 @@ export function PlanCalendar() {
         setSyncMessage('本机记录已删除，云端删除暂时失败');
       }
     } else {
-      setSyncMessage('这天的本机记录已删除');
+      setSyncMessage(signedIn
+        ? '这天的本机记录已删除；云端同步尚未启用。'
+        : '这天的本机记录已删除。');
     }
 
     setSaving(false);
@@ -251,6 +275,27 @@ export function PlanCalendar() {
           </p>
         </div>
         <Info size={16} aria-label="仅供个人趋势参考，不是医学诊断" />
+      </section>
+
+      <section className="cycle-sync-consent" aria-live="polite">
+        {signedIn ? (
+          <label>
+            <input
+              checked={normalizedCycleSettings.cloudSyncConsent}
+              onChange={(event) => updateCloudSyncConsent(event.target.checked)}
+              type="checkbox"
+            />
+            <span>
+              允许将经期和身体状态同步到我的账户
+              <small>仅用于在你的设备间恢复记录；可随时关闭，不用于医疗诊断。</small>
+            </span>
+          </label>
+        ) : (
+          <p>经期和身体状态记录仅保存在这台设备。</p>
+        )}
+        {signedIn && !normalizedCycleSettings.cloudSyncConsent && (
+          <p>未开启前，记录仅保存在这台设备。</p>
+        )}
       </section>
 
       <section className="calendar-board" aria-label="计划日历">
@@ -379,7 +424,7 @@ export function PlanCalendar() {
 
         {syncMessage && !editorOpen && (
           <p className="cycle-sync-message">
-            {signedIn && <Cloud size={14} />}
+            {cycleCloudSyncEnabled && <Cloud size={14} />}
             {syncMessage}
           </p>
         )}

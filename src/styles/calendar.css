@@ -65,6 +65,51 @@
   box-shadow: 0 8px 20px rgba(116, 70, 78, 0.07);
 }
 
+.cycle-sync-consent {
+  margin: 10px 2px 0;
+  padding: 11px 13px;
+  border: 1px solid #ece3e5;
+  border-radius: 14px;
+  color: #75696c;
+  background: rgba(255, 253, 252, 0.8);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.cycle-sync-consent p {
+  margin: 0;
+}
+
+.cycle-sync-consent label {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  cursor: pointer;
+}
+
+.cycle-sync-consent input {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: #d95c7c;
+}
+
+.cycle-sync-consent span {
+  color: #514549;
+  font-weight: 800;
+}
+
+.cycle-sync-consent small {
+  display: block;
+  margin-top: 3px;
+  color: #95878c;
+  font-weight: 600;
+}
+
+.cycle-sync-consent label + p {
+  margin-top: 7px;
+}
+
 .cycle-overview-icon {
   width: 36px;
   height: 36px;

@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { supabase } from './supabaseClient.js';
 
 export const SNAPSHOT_KEYS = [
   'today-plan-saved',
@@ -16,8 +16,6 @@ export const SNAPSHOT_KEYS = [
   'profile-training-preference',
   'profile-food-preference',
   'profile',
-  'cycle-logs',
-  'cycle-settings',
 ];
 
 function readJsonValue(key) {

@@ -8,6 +8,8 @@ import {
 } from '../src/lib/cycleTracking.js';
 import { getCycleTrainingAdjustment } from '../src/lib/cycleTrainingAdjustment.js';
 import { mapCycleLogPayload, mapCycleLogRow } from '../src/lib/cycleTrackingRepository.js';
+import { canSyncCycleLogs, normalizeCycleSyncSettings } from '../src/lib/cycleSyncConsent.js';
+import { collectLocalSnapshot, restoreLocalSnapshot } from '../src/lib/syncSnapshot.js';
 
 function bleeding(date, level = 'medium') {
   return { date, bleedingLevel: level, symptoms: [], note: '' };
@@ -276,6 +278,46 @@ run('cycle repository maps extended and legacy logs safely', () => {
     red_flags: ['dizziness'],
     updated_at: '2026-06-01T09:00:00.000Z',
   });
+});
+
+run('cycle cloud sync needs both sign-in and explicit consent', () => {
+  assert.deepEqual(normalizeCycleSyncSettings(null), { cloudSyncConsent: false });
+  assert.deepEqual(normalizeCycleSyncSettings({ cloudSyncConsent: 'yes' }), { cloudSyncConsent: false });
+  assert.deepEqual(normalizeCycleSyncSettings({ cloudSyncConsent: true }), { cloudSyncConsent: true });
+  assert.equal(canSyncCycleLogs(false, { cloudSyncConsent: true }), false);
+  assert.equal(canSyncCycleLogs(true, { cloudSyncConsent: false }), false);
+  assert.equal(canSyncCycleLogs(true, { cloudSyncConsent: true }), true);
+});
+
+run('generic cloud snapshots never include or restore cycle health data', () => {
+  const originalLocalStorage = globalThis.localStorage;
+  const store = new Map([
+    ['daily-plan-history', JSON.stringify([{ date: '2026-07-12' }])],
+    ['cycle-logs', JSON.stringify([{ date: '2026-07-12', painLevel: 7 }])],
+    ['cycle-settings', JSON.stringify({ cloudSyncConsent: true })],
+  ]);
+  globalThis.localStorage = {
+    getItem: (key) => store.get(key) ?? null,
+    setItem: (key, value) => store.set(key, String(value)),
+  };
+
+  try {
+    const snapshot = collectLocalSnapshot();
+    assert.deepEqual(snapshot['daily-plan-history'], [{ date: '2026-07-12' }]);
+    assert.equal('cycle-logs' in snapshot, false);
+    assert.equal('cycle-settings' in snapshot, false);
+
+    restoreLocalSnapshot({
+      'daily-plan-history': [{ date: '2026-07-13' }],
+      'cycle-logs': [{ date: '2026-07-13', painLevel: 9 }],
+      'cycle-settings': { cloudSyncConsent: true },
+    });
+    assert.deepEqual(JSON.parse(store.get('daily-plan-history')), [{ date: '2026-07-13' }]);
+    assert.deepEqual(JSON.parse(store.get('cycle-logs')), [{ date: '2026-07-12', painLevel: 7 }]);
+    assert.deepEqual(JSON.parse(store.get('cycle-settings')), { cloudSyncConsent: true });
+  } finally {
+    globalThis.localStorage = originalLocalStorage;
+  }
 });
 
 console.log('\nAll cycle tracking tests passed.');
