@@ -11,7 +11,7 @@ import {
   recommendNextLoad,
   upsertExerciseLog,
 } from '../src/lib/exerciseHistory.js';
-import { collectLocalSnapshot } from '../src/lib/syncSnapshot.js';
+import { collectLocalSnapshot, restoreLocalSnapshot } from '../src/lib/syncSnapshot.js';
 import { buildPlan } from '../src/features/today/planBuilder.js';
 import { buildAdaptiveWorkout } from '../src/features/today/adaptiveWorkout.js';
 
@@ -29,14 +29,14 @@ run('training profile keeps only known values and safe dumbbell loads', () => {
   const profile = normalizeTrainingProfile({
     goals: ['habit', 'unknown', 'shape', 'habit'],
     experienceLevel: 'consistent',
-    movementLimits: ['jump', 'core', 'horizontal_pull', 'unknown', 'jump'],
+    movementLimits: ['jump', 'core', 'horizontal_pull', 'stand_after_sitting', 'unknown', 'jump'],
     equipment: { bodyweight: true, dumbbellKg: [3, '2', 3, 11, -1, 101] },
     note: 'a'.repeat(121),
   });
 
   assert.deepEqual(profile.goals, ['habit', 'shape']);
   assert.equal(profile.experienceLevel, 'consistent');
-  assert.deepEqual(profile.movementLimits, ['jump', 'core', 'horizontal_pull']);
+  assert.deepEqual(profile.movementLimits, ['jump', 'core', 'horizontal_pull', 'stand_after_sitting']);
   assert.equal(profile.equipment.bodyweight, true);
   assert.equal(profile.note, 'a'.repeat(120));
   assert.deepEqual(availableDumbbellLoads(profile), [2, 3]);
@@ -372,6 +372,31 @@ run('local snapshots omit training profiles and body records', () => {
     assert.equal('training-profile' in snapshot, false);
     assert.equal('body-trend-history' in snapshot, false);
     assert.equal('exercise-session-history' in snapshot, false);
+  } finally {
+    globalThis.localStorage = originalStorage;
+  }
+});
+
+run('snapshot restoration ignores sensitive training and body keys', () => {
+  const originalStorage = globalThis.localStorage;
+  const store = new Map();
+  globalThis.localStorage = {
+    getItem: (key) => store.get(key) ?? null,
+    setItem: (key, value) => store.set(key, String(value)),
+  };
+
+  try {
+    restoreLocalSnapshot({
+      'daily-plan-history': [{ date: '2026-07-12' }],
+      'training-profile': { heightCm: 165 },
+      'body-trend-history': [{ date: '2026-07-12', weightKg: 60 }],
+      'exercise-session-history': [{ exerciseId: 'squat' }],
+    });
+
+    assert.deepEqual(JSON.parse(store.get('daily-plan-history')), [{ date: '2026-07-12' }]);
+    assert.equal(store.has('training-profile'), false);
+    assert.equal(store.has('body-trend-history'), false);
+    assert.equal(store.has('exercise-session-history'), false);
   } finally {
     globalThis.localStorage = originalStorage;
   }

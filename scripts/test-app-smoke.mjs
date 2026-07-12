@@ -228,11 +228,51 @@ try {
   await page.getByRole('dialog', { name: '提醒时间设置', exact: true }).waitFor({ state: 'detached' });
   await page.getByText('训练偏好', { exact: true }).click();
   await expectVisible(page.getByRole('dialog', { name: '训练资料设置', exact: true }), 'Training profile sheet');
+  await page.getByRole('button', { name: '久坐后起身', exact: true }).click();
   await page.getByRole('button', { name: '建立习惯', exact: true }).click();
   await page.getByRole('button', { name: '从没练过', exact: true }).click();
+  await page.getByLabel('身高（cm）', { exact: true }).fill('165.5');
+  await page.getByLabel('本周体重（kg）', { exact: true }).fill('61.2');
+  await page.getByRole('button', { name: '弹力带', exact: true }).click();
   await page.getByRole('button', { name: '2kg', exact: true }).click();
+  await page.getByLabel('自定义哑铃重量（kg）', { exact: true }).fill('2.5');
+  await page.getByRole('button', { name: '添加重量', exact: true }).click();
+  const customWeightChip = page.getByRole('button', { name: '2.5kg ×', exact: true });
+  await expectVisible(customWeightChip, 'Custom dumbbell weight chip');
+  const customWeightChipBox = await customWeightChip.boundingBox();
+  assert.ok(
+    customWeightChipBox && customWeightChipBox.height >= 44,
+    `Removable custom weight chip should have a 44px target: ${JSON.stringify(customWeightChipBox)}`,
+  );
   await page.getByRole('button', { name: '保存训练资料', exact: true }).click();
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem('training-profile') || '{}').goal === 'habit');
+  await page.waitForFunction(() => {
+    const profile = JSON.parse(localStorage.getItem('training-profile') || '{}');
+    const trend = JSON.parse(localStorage.getItem('body-trend-history') || '[]');
+    return profile.goal === 'habit'
+      && profile.heightCm === 165.5
+      && profile.movementLimits?.includes('stand_after_sitting')
+      && profile.equipment?.bands === true
+      && profile.equipment?.customDumbbellKg?.includes(2.5)
+      && trend.length === 1
+      && trend[0]?.weightKg === 61.2;
+  });
+  await page.evaluate(() => {
+    localStorage.setItem('body-trend-history', JSON.stringify([{ date: '2026-07-01', weightKg: 60 }]));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: '我的', exact: true }).click();
+  await page.getByText('训练偏好', { exact: true }).click();
+  await expectVisible(page.getByRole('dialog', { name: '训练资料设置', exact: true }), 'Restored training profile sheet');
+  assert.equal(await page.getByLabel('身高（cm）', { exact: true }).inputValue(), '165.5');
+  assert.equal(await page.getByLabel('本周体重（kg）', { exact: true }).inputValue(), '60');
+  assert.equal(await page.getByRole('button', { name: '弹力带', exact: true }).getAttribute('aria-pressed'), 'true');
+  await expectVisible(page.getByRole('button', { name: '2.5kg ×', exact: true }), 'Restored custom weight chip');
+  await page.getByRole('button', { name: '健身房器械', exact: true }).click();
+  await page.getByRole('button', { name: '保存训练资料', exact: true }).click();
+  await page.waitForFunction(() => {
+    const trend = JSON.parse(localStorage.getItem('body-trend-history') || '[]');
+    return trend.length === 1 && trend[0]?.date === '2026-07-01' && trend[0]?.weightKg === 60;
+  });
   await page.locator('.profile-edit-trigger').click();
   await expectVisible(page.getByRole('dialog', { name: '编辑个人资料', exact: true }), 'Profile edit sheet');
   await page.locator('.profile-edit-sheet').evaluate((element) => {

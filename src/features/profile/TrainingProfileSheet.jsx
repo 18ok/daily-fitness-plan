@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   AVOID_MOVEMENTS,
   DUMBBELL_PRESETS,
@@ -33,10 +33,10 @@ const EQUIPMENT_OPTIONS = [
 ];
 
 const MOVEMENT_OPTIONS = [
-  { value: AVOID_MOVEMENTS[0], label: '深蹲、起身' },
+  { value: AVOID_MOVEMENTS[0], label: '深蹲动作' },
+  { value: AVOID_MOVEMENTS[7], label: '久坐后起身' },
   { value: AVOID_MOVEMENTS[1], label: '弯腰、硬拉' },
   { value: AVOID_MOVEMENTS[2], label: '头顶推举' },
-  { value: AVOID_MOVEMENTS[3], label: '拉的动作' },
   { value: AVOID_MOVEMENTS[6], label: '跳跃动作' },
 ];
 
@@ -90,6 +90,7 @@ function ChoiceButton({ active, children, onClick }) {
 export function TrainingProfileSheet({ bodyTrendHistory, onClose, onSaveProfile, onSaveWeight, profile }) {
   const [draft, setDraft] = useState(() => createDraft(profile, bodyTrendHistory));
   const [customWeight, setCustomWeight] = useState('');
+  const weightWasEdited = useRef(false);
 
   function toggleDraftValue(key, value) {
     setDraft((current) => ({ ...current, [key]: toggleValue(current[key], value) }));
@@ -148,10 +149,12 @@ export function TrainingProfileSheet({ bodyTrendHistory, onClose, onSaveProfile,
       ...normalizedProfile,
       goal: normalizedProfile.goals[0] || '',
     });
-    onSaveWeight(normalizeBodyTrendHistory([
-      ...(Array.isArray(bodyTrendHistory) ? bodyTrendHistory : []),
-      ...(Number.isFinite(weightKg) && weightKg > 0 ? [{ date: todayKey(), weightKg }] : []),
-    ]));
+    if (weightWasEdited.current && Number.isFinite(weightKg) && weightKg > 0) {
+      onSaveWeight(normalizeBodyTrendHistory([
+        ...(Array.isArray(bodyTrendHistory) ? bodyTrendHistory : []),
+        { date: todayKey(), weightKg },
+      ]));
+    }
     onClose();
   }
 
@@ -202,7 +205,10 @@ export function TrainingProfileSheet({ bodyTrendHistory, onClose, onSaveProfile,
                 <input
                   inputMode="decimal"
                   min="0"
-                  onChange={(event) => setDraft((current) => ({ ...current, weightKg: event.target.value }))}
+                  onChange={(event) => {
+                    weightWasEdited.current = true;
+                    setDraft((current) => ({ ...current, weightKg: event.target.value }));
+                  }}
                   type="number"
                   value={draft.weightKg}
                 />
