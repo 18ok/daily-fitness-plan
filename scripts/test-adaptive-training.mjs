@@ -219,6 +219,39 @@ run('adaptive workout replaces an avoided movement and starts from the smallest 
   assert.equal(workout.movements[0].suggestedLoad.loadKg, 2);
 });
 
+run('adaptive workout re-routes every sit-to-stand path for stand_after_sitting', () => {
+  const sharedInput = {
+    basePlan: buildPlan('30分钟', '白班', '家里'),
+    state: { time: '30分钟', status: '白班', condition: '家里' },
+    exerciseHistory: [],
+    cycleAdjustment: { level: 'normal' },
+  };
+  const workouts = [
+    buildAdaptiveWorkout({
+      ...sharedInput,
+      trainingProfile: normalizeTrainingProfile({
+        goals: ['shape'],
+        equipment: { bodyweight: true, dumbbellKg: [2] },
+        movementLimits: ['stand_after_sitting'],
+      }),
+    }),
+    buildAdaptiveWorkout({
+      ...sharedInput,
+      trainingProfile: normalizeTrainingProfile({
+        goals: ['shape'],
+        equipment: { bodyweight: true },
+        movementLimits: ['stand_after_sitting'],
+      }),
+    }),
+  ];
+
+  workouts.forEach((workout) => {
+    assert.equal(workout.movements.some((item) => item.id === 'goblet_squat' || item.id === 'bodyweight_squat'), false);
+    assert.equal(workout.movements.some((item) => item.name.includes('坐站') || item.replacement?.includes('坐站')), false);
+    assert.equal(workout.movements.some((item) => item.id === 'glute_bridge'), true);
+  });
+});
+
 run('adaptive workout suggests rest for a safety flag', () => {
   const workout = buildAdaptiveWorkout({
     basePlan: buildPlan('30分钟', '白班', '家里'),

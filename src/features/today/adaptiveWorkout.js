@@ -29,6 +29,7 @@ const movementCatalog = [
     id: 'goblet_squat',
     name: '杯式深蹲',
     movement: 'squat',
+    limitMovements: ['squat', 'stand_after_sitting'],
     equipmentLabel: '已拥有的哑铃',
     requiresDumbbell: true,
     fallback: {
@@ -174,7 +175,9 @@ function resolveMovement(template, context) {
   const { goals, limits, loads, bodyweight, mode, exerciseHistory } = context;
   let resolved = template;
 
-  if (limits.includes(template.movement)) {
+  const limitedMovements = template.limitMovements || [template.movement];
+
+  if (limitedMovements.some((movement) => limits.includes(movement))) {
     if (!template.avoidedFallback) return null;
     resolved = { ...template, ...template.avoidedFallback, requiresDumbbell: false };
   } else if (template.requiresDumbbell && loads.length === 0 && template.fallback) {
