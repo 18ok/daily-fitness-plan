@@ -5,6 +5,9 @@ export const DUMBBELL_PRESETS = [0.5, 1, 1.5, 2, 3, 4, 5, 7.5, 10];
 const SAFETY_FLAGS = ['none', 'suggest_rest'];
 const TRAINING_PLACES = ['home', 'gym', 'outdoors'];
 const FOOD_HABITS = ['protein_first', 'regular_meals', 'convenience_store'];
+const DIET_TAKEOUT = ['rarely', 'weekly_1_3', 'weekly_4_plus'];
+const DIET_BREAKFAST = ['usually', 'sometimes', 'rarely'];
+const DIET_PROTEIN = ['each_meal', 'some_meals', 'unsure'];
 
 const CAKE_EXPLANATION = '这是你和自己的趋势对比，不是体脂测试，也不会决定你今天该练多重。';
 
@@ -25,19 +28,11 @@ function knownValuesWithAlias(values, alias, allowed) {
   return [...new Set([...knownValues(values, allowed), ...knownValues(aliasValues, allowed)])];
 }
 
-function cleanText(value) {
-  return typeof value === 'string' ? value.slice(0, 120) : '';
+function cleanText(value, maximum = 120) {
+  return typeof value === 'string' ? value.trim().slice(0, maximum) : '';
 }
 
-function normalizedPresetLoads(value) {
-  if (!Array.isArray(value)) return [];
-  return [...new Set(value
-    .map(Number)
-    .filter((load) => DUMBBELL_PRESETS.includes(load) && load > 0 && load <= 100))]
-    .sort((left, right) => left - right);
-}
-
-function normalizedCustomLoads(value) {
+function normalizedLoads(value) {
   if (!Array.isArray(value)) return [];
   return [...new Set(value
     .map(Number)
@@ -52,12 +47,23 @@ function normalizedMetric(value, minimum, maximum) {
   return Number(number.toFixed(1));
 }
 
-function normalizedAdjustableRange(value) {
+function normalizedAdjustableDumbbell(value) {
   const range = value && typeof value === 'object' ? value : {};
   const minKg = normalizedMetric(range.minKg, 0.1, 100);
   const maxKg = normalizedMetric(range.maxKg, 0.1, 100);
   if (minKg === null || maxKg === null || minKg > maxKg) return null;
-  return { minKg, maxKg };
+
+  const candidateStep = normalizedMetric(range.stepKg, 0.1, 100);
+  const stepKg = candidateStep !== null ? candidateStep : null;
+  return { minKg, maxKg, stepKg };
+}
+
+function normalizedMachineLabels(value) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value
+    .map((label) => cleanText(label, 60))
+    .filter(Boolean))]
+    .slice(0, 12);
 }
 
 function normalizedSafetyFlag(value) {
@@ -65,30 +71,66 @@ function normalizedSafetyFlag(value) {
   return SAFETY_FLAGS.includes(value) ? value : 'none';
 }
 
+function normalizedDietHabits(value) {
+  const habits = value && typeof value === 'object' ? value : {};
+  return {
+    takeout: DIET_TAKEOUT.includes(habits.takeout) ? habits.takeout : '',
+    breakfast: DIET_BREAKFAST.includes(habits.breakfast) ? habits.breakfast : '',
+    protein: DIET_PROTEIN.includes(habits.protein) ? habits.protein : '',
+    restrictions: cleanText(habits.restrictions),
+  };
+}
+
+function adjustableLoads(range) {
+  if (!range) return [];
+  if (range.stepKg === null) return [range.minKg];
+
+  const loads = [];
+  for (let index = 0; index <= 1000; index += 1) {
+    const load = Number((range.minKg + (range.stepKg * index)).toFixed(1));
+    if (load > range.maxKg + 0.000001) break;
+    loads.push(load);
+  }
+  return [...new Set(loads)].sort((left, right) => left - right);
+}
+
 export function normalizeTrainingProfile(value) {
   const profile = value && typeof value === 'object' ? value : {};
   const equipment = profile.equipment && typeof profile.equipment === 'object' ? profile.equipment : {};
+  const goals = knownValuesWithAlias(profile.goals, profile.goal, TRAINING_GOALS);
+  const adjustableDumbbell = normalizedAdjustableDumbbell(equipment.adjustableDumbbell || equipment.adjustableDumbbellRange);
+  const dumbbellKg = normalizedLoads([
+    ...(Array.isArray(equipment.dumbbellKg) ? equipment.dumbbellKg : []),
+    ...(Array.isArray(equipment.customDumbbellKg) ? equipment.customDumbbellKg : []),
+  ]);
+  const customDumbbellKg = normalizedLoads(equipment.customDumbbellKg);
 
   return {
-    goals: knownValuesWithAlias(profile.goals, profile.goal, TRAINING_GOALS),
+    goals,
+    goal: goals[0] || '',
     experienceLevel: EXPERIENCE_LEVELS.includes(profile.experienceLevel)
       ? profile.experienceLevel
       : (EXPERIENCE_LEVELS.includes(profile.experience) ? profile.experience : 'new'),
     heightCm: normalizedMetric(profile.heightCm, 50, 250),
     trainingPlaces: knownValues(profile.trainingPlaces, TRAINING_PLACES),
     foodHabits: knownValues(profile.foodHabits, FOOD_HABITS),
+    dietHabits: normalizedDietHabits(profile.dietHabits),
+    discomfortNote: cleanText(profile.discomfortNote ?? profile.note),
     movementLimits: knownValuesWithAlias(profile.movementLimits, profile.avoidMovements, AVOID_MOVEMENTS),
     equipment: {
       bodyweight: equipment.bodyweight === true,
-      dumbbellKg: normalizedPresetLoads(equipment.dumbbellKg),
       bands: equipment.bands === true,
-      kettlebell: equipment.kettlebell === true,
-      gymMachines: equipment.gymMachines === true,
-      customDumbbellKg: normalizedCustomLoads(equipment.customDumbbellKg),
-      adjustableDumbbellRange: normalizedAdjustableRange(equipment.adjustableDumbbellRange),
+      dumbbellKg,
+      adjustableDumbbell,
+      kettlebellKg: normalizedLoads(equipment.kettlebellKg),
+      gymMachines: normalizedMachineLabels(equipment.gymMachines),
+      // These aliases retain previously saved local profiles while the app writes the design schema.
+      customDumbbellKg,
+      adjustableDumbbellRange: adjustableDumbbell
+        ? { minKg: adjustableDumbbell.minKg, maxKg: adjustableDumbbell.maxKg }
+        : null,
     },
     safetyFlag: normalizedSafetyFlag(profile.safetyFlag),
-    note: cleanText(profile.note),
   };
 }
 
@@ -96,12 +138,20 @@ export function availableDumbbellLoads(profile) {
   const equipment = profile && typeof profile === 'object' && profile.equipment && typeof profile.equipment === 'object'
     ? profile.equipment
     : {};
-  const adjustableRange = normalizedAdjustableRange(equipment.adjustableDumbbellRange);
+  const adjustableDumbbell = normalizedAdjustableDumbbell(equipment.adjustableDumbbell || equipment.adjustableDumbbellRange);
   return [...new Set([
-    ...normalizedPresetLoads(equipment.dumbbellKg),
-    ...normalizedCustomLoads(equipment.customDumbbellKg),
-    ...(adjustableRange ? [adjustableRange.minKg, adjustableRange.maxKg] : []),
+    ...normalizedLoads(equipment.dumbbellKg),
+    ...normalizedLoads(equipment.customDumbbellKg),
+    ...adjustableLoads(adjustableDumbbell),
   ])].sort((left, right) => left - right);
+}
+
+export function availableKettlebellLoads(profile) {
+  return normalizedLoads(profile?.equipment?.kettlebellKg);
+}
+
+export function selectedGymMachines(profile) {
+  return normalizedMachineLabels(profile?.equipment?.gymMachines);
 }
 
 export function normalizeBodyTrendHistory(value) {

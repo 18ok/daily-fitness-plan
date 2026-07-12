@@ -1,4 +1,4 @@
-import { availableDumbbellLoads } from '../../lib/trainingProfile.js';
+import { availableDumbbellLoads, availableKettlebellLoads, selectedGymMachines } from '../../lib/trainingProfile.js';
 import { recentExerciseHistory, recommendNextLoad } from '../../lib/exerciseHistory.js';
 
 const loadCopy = {
@@ -7,6 +7,8 @@ const loadCopy = {
   keep: '先继续用上次这个重量',
   decrease: '今天先换轻一点，动作稳更重要',
   bodyweight: '先用徒手版本试一组',
+  band_start: '先用弹力带轻阻力试一组，阻力可在记录时补充',
+  machine_start: '先从这台器械的最轻档试一组，需要时再记录实际 kg',
   stop: '今天先不加重量，做舒缓活动或休息',
 };
 
@@ -84,6 +86,50 @@ const movementCatalog = [
   },
 ];
 
+const bandCatalog = [
+  {
+    id: 'band_row',
+    name: '弹力带划船',
+    movement: 'horizontal_pull',
+    equipmentLabel: '弹力带',
+    requiresBands: true,
+    loadKind: 'band',
+  },
+  {
+    id: 'band_chest_press',
+    name: '弹力带推胸',
+    movement: 'horizontal_push',
+    equipmentLabel: '弹力带',
+    requiresBands: true,
+    loadKind: 'band',
+  },
+];
+
+const kettlebellCatalog = [
+  {
+    id: 'kettlebell_deadlift',
+    name: '壶铃硬拉',
+    movement: 'hinge',
+    equipmentLabel: '壶铃',
+    requiresKettlebell: true,
+  },
+  {
+    id: 'kettlebell_goblet_squat',
+    name: '壶铃杯式深蹲',
+    movement: 'squat',
+    equipmentLabel: '壶铃',
+    requiresKettlebell: true,
+  },
+];
+
+const machineCatalog = [{
+  id: 'machine_row',
+  name: '器械划船',
+  movement: 'horizontal_pull',
+  requiresMachine: true,
+  loadKind: 'machine',
+}];
+
 const recoveryCatalog = [
   {
     id: 'easy_walk',
@@ -102,6 +148,21 @@ const recoveryCatalog = [
     targetReps: '每个方向 5–8 次',
   },
 ];
+
+const uncomfortableFallback = {
+  id: 'gentle_mobility',
+  name: '舒缓活动度练习',
+  equipmentLabel: '无负重',
+  requiresBands: false,
+  requiresBodyweight: false,
+  requiresDumbbell: false,
+  requiresKettlebell: false,
+  requiresMachine: false,
+  loadKind: 'bodyweight',
+  targetReps: '每个方向 5–8 次',
+  replacement: '上次这个动作不舒服，今天先改成无负重的舒缓活动',
+  isSafetyAlternative: true,
+};
 
 function asArray(value) {
   return Array.isArray(value) ? value.filter((item) => typeof item === 'string') : [];
@@ -130,22 +191,24 @@ function workoutMode(cycleAdjustment, trainingProfile) {
   return ['light', 'recovery'].includes(cycleAdjustment?.level) ? cycleAdjustment.level : 'normal';
 }
 
-function movementCount(time) {
+function movementCount(time, experienceLevel) {
   if (time === '15分钟') return 2;
-  if (time === '45分钟') return 5;
-  if (time === '60分钟') return 5;
-  return 4;
+  const countByExperience = { new: 2, occasional: 3, consistent: 4 };
+  const count = countByExperience[experienceLevel] || countByExperience.new;
+  if (time === '45分钟' || time === '60分钟') return Math.min(5, count + 1);
+  return count;
 }
 
-function targetReps(goals) {
+function targetReps(goals, experienceLevel) {
+  if (experienceLevel === 'consistent') return '8–10 次';
   if (goals.includes('habit')) return '6–8 次';
-  return '8–10 次';
+  return '6–8 次';
 }
 
-function setsFor(mode) {
+function setsFor(mode, experienceLevel) {
   if (mode === 'recovery') return 1;
   if (mode === 'light') return 2;
-  return 2;
+  return experienceLevel === 'new' ? 1 : 2;
 }
 
 function latestExerciseLog(history, exerciseId) {
@@ -154,15 +217,18 @@ function latestExerciseLog(history, exerciseId) {
     || null;
 }
 
-function loadSuggestion({ exerciseId, requiresDumbbell, loads, exerciseHistory, mode }) {
+function loadSuggestion({ exerciseId, availableLoads, exerciseHistory, loadKind, mode }) {
+  if (loadKind === 'band') return { loadKg: null, action: 'band_start', guidance: loadCopy.band_start };
+  if (loadKind === 'machine') return { loadKg: null, action: 'machine_start', guidance: loadCopy.machine_start };
+
   const previousLog = latestExerciseLog(exerciseHistory, exerciseId);
   const recommendation = recommendNextLoad({
-    availableLoads: requiresDumbbell ? loads : [],
+    availableLoads: loadKind === 'load' ? availableLoads : [],
     previousLog,
     todayMode: mode,
   });
   const shouldHoldLoad = mode !== 'normal' && recommendation.action === 'increase';
-  const heldLoad = loads.filter((load) => load <= Number(previousLog?.loadKg)).at(-1) || loads[0] || null;
+  const heldLoad = availableLoads.filter((load) => load <= Number(previousLog?.loadKg)).at(-1) || availableLoads[0] || null;
 
   return {
     loadKg: shouldHoldLoad ? heldLoad : recommendation.loadKg,
@@ -172,34 +238,48 @@ function loadSuggestion({ exerciseId, requiresDumbbell, loads, exerciseHistory, 
 }
 
 function resolveMovement(template, context) {
-  const { goals, limits, loads, bodyweight, mode, exerciseHistory } = context;
+  const {
+    bands, bodyweight, experienceLevel, exerciseHistory, goals, kettlebellLoads, limits, loads, machines, mode,
+  } = context;
   let resolved = template;
 
   const limitedMovements = template.limitMovements || [template.movement];
 
-  if (limitedMovements.some((movement) => limits.includes(movement))) {
+  if (latestExerciseLog(exerciseHistory, template.id)?.feedback === 'uncomfortable') {
+    resolved = { ...template, ...uncomfortableFallback };
+  } else if (limitedMovements.some((movement) => limits.includes(movement))) {
     if (!template.avoidedFallback) return null;
     resolved = { ...template, ...template.avoidedFallback, requiresDumbbell: false };
   } else if (template.requiresDumbbell && loads.length === 0 && template.fallback) {
     resolved = { ...template, ...template.fallback, requiresDumbbell: false };
   }
 
-  if ((resolved.requiresDumbbell && loads.length === 0) || (resolved.requiresBodyweight && !bodyweight)) {
+  if ((resolved.requiresDumbbell && loads.length === 0)
+    || (resolved.requiresKettlebell && kettlebellLoads.length === 0)
+    || (resolved.requiresMachine && machines.length === 0)
+    || (resolved.requiresBands && !bands)
+    || (resolved.requiresBodyweight && !bodyweight)) {
     return null;
   }
+
+  const loadKind = resolved.loadKind || ((resolved.requiresDumbbell || resolved.requiresKettlebell) ? 'load' : 'bodyweight');
+  const availableLoads = resolved.requiresKettlebell ? kettlebellLoads : loads;
 
   return {
     id: resolved.id,
     name: resolved.name,
     replacement: resolved.replacement || null,
-    equipmentLabel: resolved.equipmentLabel,
-    sets: setsFor(mode),
-    targetReps: resolved.targetReps || targetReps(goals),
+    isSafetyAlternative: resolved.isSafetyAlternative === true,
+    equipmentLabel: resolved.requiresMachine ? machines[0] : resolved.equipmentLabel,
+    loadKind,
+    availableLoads: loadKind === 'load' ? availableLoads : [],
+    sets: setsFor(mode, experienceLevel),
+    targetReps: resolved.targetReps || targetReps(goals, experienceLevel),
     suggestedLoad: loadSuggestion({
       exerciseId: resolved.id,
-      requiresDumbbell: resolved.requiresDumbbell === true,
-      loads,
+      availableLoads,
       exerciseHistory,
+      loadKind,
       mode,
     }),
     why: goals.includes('shape') ? '用容易掌握的全身动作，慢慢建立塑形基础。' : '用容易掌握的动作，先把训练习惯做稳。',
@@ -236,12 +316,42 @@ function mealGuide(basePlan, goals, state) {
   };
 }
 
-function safetyNotice(mode, cycleAdjustment) {
+function tailoredMealGuide(basePlan, profile, state) {
+  const guide = mealGuide(basePlan, profileGoals(profile), state);
+  const habits = profile?.dietHabits || {};
+  if (!profileGoals(profile).includes('fat_loss_food')) return guide;
+
+  if (habits.takeout === 'weekly_4_plus') {
+    return {
+      ...guide,
+      suggestion: '外卖时可以先找一份蛋白质、一个主食和蔬菜，不用为了补偿而少吃。',
+      reminder: habits.breakfast === 'rarely'
+        ? '早餐先从一份容易准备的主食和蛋白质开始，规律比追求完美更重要。'
+        : guide.reminder,
+    };
+  }
+  if (habits.protein === 'unsure') {
+    return {
+      ...guide,
+      suggestion: '每餐先看看有没有蛋、奶、豆制品、鱼肉或其他你愿意吃的蛋白质。',
+      reminder: habits.breakfast === 'rarely'
+        ? '早餐先从一份容易准备的主食和蛋白质开始，规律比追求完美更重要。'
+        : guide.reminder,
+    };
+  }
+  if (habits.breakfast === 'rarely') {
+    return { ...guide, reminder: '早餐先从一份容易准备的主食和蛋白质开始，规律比追求完美更重要。' };
+  }
+  return guide;
+}
+
+function safetyNotice(mode, cycleAdjustment, hasUncomfortableAction = false) {
   if (mode === 'suggest_rest') {
     return cycleAdjustment?.suggestion || '今天先暂停训练；如症状严重、持续或令你担心，请及时就医。';
   }
   if (mode === 'recovery') return '今天以舒缓活动为主；如不适就停止。';
   if (mode === 'light') return '今天做轻量版本，动作舒服比完成数量更重要。';
+  if (hasUncomfortableAction) return '上次有动作让你不舒服，今天先停掉那个动作并改做无负重舒缓活动；如不适持续或令你担心，请停止并咨询专业人士。';
   return '按自己的感受调整；如果训练中出现不适，请及时停止。';
 }
 
@@ -255,34 +365,42 @@ export function buildAdaptiveWorkout({
   const goals = profileGoals(trainingProfile);
   const mode = workoutMode(cycleAdjustment, trainingProfile);
   const loads = availableDumbbellLoads(trainingProfile);
+  const kettlebellLoads = availableKettlebellLoads(trainingProfile);
+  const machines = selectedGymMachines(trainingProfile);
   const context = {
+    bands: trainingProfile?.equipment?.bands === true,
     goals,
     limits: movementLimits(trainingProfile),
     loads,
+    kettlebellLoads,
+    machines,
     bodyweight: hasBodyweightCapability(trainingProfile),
     mode,
     exerciseHistory,
+    experienceLevel: trainingProfile?.experienceLevel || trainingProfile?.experience || 'new',
   };
 
   if (mode === 'suggest_rest') {
     return {
       mode,
       movements: [],
-      mealGuide: mealGuide(basePlan, goals, state),
+      mealGuide: tailoredMealGuide(basePlan, trainingProfile, state),
       safetyNotice: safetyNotice(mode, cycleAdjustment),
     };
   }
 
   const templates = mode === 'recovery'
     ? recoveryCatalog
-    : movementCatalog.slice(0, movementCount(state?.time));
-  const movements = uniqueMovements(templates.map((template) => resolveMovement(template, context)));
+    : [...movementCatalog, ...bandCatalog, ...kettlebellCatalog, ...machineCatalog];
+  const movements = uniqueMovements(templates.map((template) => resolveMovement(template, context)))
+    .slice(0, movementCount(state?.time, context.experienceLevel));
+  const hasUncomfortableAction = movements.some((movement) => movement.isSafetyAlternative);
 
   if (movements.length === 0) {
     return {
       mode: 'suggest_rest',
       movements: [],
-      mealGuide: mealGuide(basePlan, goals, state),
+      mealGuide: tailoredMealGuide(basePlan, trainingProfile, state),
       safetyNotice: '还没有确认可用器械或徒手训练，今天先不安排训练。',
     };
   }
@@ -290,8 +408,8 @@ export function buildAdaptiveWorkout({
   return {
     mode,
     movements,
-    mealGuide: mealGuide(basePlan, goals, state),
-    safetyNotice: safetyNotice(mode, cycleAdjustment),
+    mealGuide: tailoredMealGuide(basePlan, trainingProfile, state),
+    safetyNotice: safetyNotice(mode, cycleAdjustment, hasUncomfortableAction),
   };
 }
 

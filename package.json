@@ -12,7 +12,7 @@
     "test:app-logic": "node scripts/test-app-logic.mjs",
     "test:smoke": "node scripts/test-app-smoke.mjs",
     "check:maintenance-diff": "node scripts/check-maintenance-diff.mjs",
-    "verify:maintenance": "npm run test:app-logic && npm run test:cycle && npm run test:smoke && npm run check:maintenance-diff && npm run build"
+    "verify:maintenance": "npm run test:app-logic && npm run test:cycle && npm run test:adaptive && npm run test:smoke && npm run check:maintenance-diff && npm run build"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.1",

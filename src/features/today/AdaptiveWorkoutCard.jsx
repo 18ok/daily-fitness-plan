@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { localDateKey } from '../../lib/careHistory';
 import { recentExerciseHistory, upsertExerciseLog } from '../../lib/exerciseHistory';
-import { availableDumbbellLoads } from '../../lib/trainingProfile';
+import { availableDumbbellLoads, availableKettlebellLoads, selectedGymMachines } from '../../lib/trainingProfile';
 
 const feedbackOptions = [
   { value: 'too_easy', label: '太轻松' },
@@ -25,12 +25,16 @@ function feedbackLabel(feedback) {
 
 function resultText(log) {
   if (!log) return '上次：还没有记录';
-  const load = log.loadKg === null ? '徒手' : `${log.loadKg}kg`;
-  return `上次：${load} · ${log.sets.length} 组 · ${feedbackLabel(log.feedback)}`;
+  const equipment = log.equipment || (log.loadKg === null ? '徒手' : `${log.loadKg}kg`);
+  const load = log.loadKg === null ? '' : ` ${log.loadKg}kg`;
+  const resistance = log.resistance ? ` ${log.resistance}` : '';
+  return `上次：${equipment}${load}${resistance} · ${log.sets.length} 组 · ${feedbackLabel(log.feedback)}`;
 }
 
 function emptyDraft() {
-  return { load: null, completedSetIndexes: [], feedback: '', note: '', saved: false };
+  return {
+    load: null, machineLoad: '', completedSetIndexes: [], feedback: '', note: '', resistance: '', saved: false,
+  };
 }
 
 export function AdaptiveWorkoutCard({ exerciseHistory, onSaveLog, profile, workout }) {
@@ -38,7 +42,12 @@ export function AdaptiveWorkoutCard({ exerciseHistory, onSaveLog, profile, worko
   const [drafts, setDrafts] = useState({});
   const ownedLoads = availableDumbbellLoads(profile);
   const hasBodyweight = profile?.equipment?.bodyweight === true;
-  const profileNeedsSetup = ownedLoads.length === 0 && !hasBodyweight;
+  const hasEquipment = hasBodyweight
+    || ownedLoads.length > 0
+    || profile?.equipment?.bands === true
+    || availableKettlebellLoads(profile).length > 0
+    || selectedGymMachines(profile).length > 0;
+  const profileNeedsSetup = !hasEquipment;
 
   if (!workout) return null;
 
@@ -74,9 +83,14 @@ export function AdaptiveWorkoutCard({ exerciseHistory, onSaveLog, profile, worko
 
     onSaveLog((current) => upsertExerciseLog(current, {
       exerciseId: movement.id,
+      exerciseName: movement.name,
       date: localDateKey(),
+      equipment: movement.equipmentLabel,
       feedback: draft.feedback,
-      loadKg: draft.load === 'bodyweight' ? null : draft.load,
+      loadKg: typeof draft.load === 'number'
+        ? draft.load
+        : (movement.loadKind === 'machine' && Number(draft.machineLoad) > 0 ? Number(draft.machineLoad) : null),
+      resistance: movement.loadKind === 'band' ? draft.resistance : '',
       sets: Array.from({ length: movement.sets }, () => ({ plannedReps: reps, completedReps: reps })),
       note: draft.note,
     }));
@@ -101,7 +115,7 @@ export function AdaptiveWorkoutCard({ exerciseHistory, onSaveLog, profile, worko
             const history = recentExerciseHistory(exerciseHistory, movement.id, 3);
             const reps = completedReps(movement.targetReps);
             const unit = usesMinutes(movement.targetReps) ? '分钟' : '次';
-            const needsWeight = movement.suggestedLoad.loadKg !== null;
+            const needsWeight = movement.loadKind === 'load';
             const readyToSave = draft.load !== null
               && draft.completedSetIndexes.length === movement.sets
               && Boolean(draft.feedback);
@@ -147,10 +161,10 @@ export function AdaptiveWorkoutCard({ exerciseHistory, onSaveLog, profile, worko
                 {isOpen && (
                   <div className="adaptive-movement-form">
                     <fieldset className="adaptive-fieldset">
-                      <legend>实际重量</legend>
+                      <legend>实际器械和重量</legend>
                       {needsWeight ? (
                         <div className="adaptive-weight-grid">
-                          {ownedLoads.map((load) => (
+                          {movement.availableLoads.map((load) => (
                             <button
                               aria-pressed={draft.load === load}
                               className={draft.load === load ? 'is-selected' : ''}
@@ -162,6 +176,49 @@ export function AdaptiveWorkoutCard({ exerciseHistory, onSaveLog, profile, worko
                             </button>
                           ))}
                         </div>
+                      ) : movement.loadKind === 'band' ? (
+                        <>
+                          <button
+                            aria-pressed={draft.load === 'band'}
+                            className={`adaptive-bodyweight ${draft.load === 'band' ? 'is-selected' : ''}`}
+                            onClick={() => updateDraft(movement.id, (current) => ({ ...current, load: 'band', saved: false }))}
+                            type="button"
+                          >
+                            弹力带
+                          </button>
+                          <label className="adaptive-note" htmlFor={`adaptive-resistance-${movement.id}`}>
+                            弹力带阻力（选填）
+                            <input
+                              id={`adaptive-resistance-${movement.id}`}
+                              maxLength="120"
+                              onChange={(event) => updateDraft(movement.id, (current) => ({ ...current, resistance: event.target.value, saved: false }))}
+                              placeholder="例如：中等阻力"
+                              value={draft.resistance}
+                            />
+                          </label>
+                        </>
+                      ) : movement.loadKind === 'machine' ? (
+                        <>
+                          <button
+                            aria-pressed={draft.load === 'machine'}
+                            className={`adaptive-bodyweight ${draft.load === 'machine' ? 'is-selected' : ''}`}
+                            onClick={() => updateDraft(movement.id, (current) => ({ ...current, load: 'machine', saved: false }))}
+                            type="button"
+                          >
+                            最轻档
+                          </button>
+                          <label className="adaptive-note" htmlFor={`adaptive-machine-load-${movement.id}`}>
+                            这台器械的实际重量（kg，选填）
+                            <input
+                              id={`adaptive-machine-load-${movement.id}`}
+                              inputMode="decimal"
+                              min="0"
+                              onChange={(event) => updateDraft(movement.id, (current) => ({ ...current, machineLoad: event.target.value, saved: false }))}
+                              type="number"
+                              value={draft.machineLoad}
+                            />
+                          </label>
+                        </>
                       ) : (
                         <button
                           aria-pressed={draft.load === 'bodyweight'}
@@ -169,7 +226,7 @@ export function AdaptiveWorkoutCard({ exerciseHistory, onSaveLog, profile, worko
                           onClick={() => updateDraft(movement.id, (current) => ({ ...current, load: 'bodyweight', saved: false }))}
                           type="button"
                         >
-                          徒手
+                          {movement.equipmentLabel}
                         </button>
                       )}
                     </fieldset>

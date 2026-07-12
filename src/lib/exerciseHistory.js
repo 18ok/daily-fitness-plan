@@ -24,10 +24,16 @@ function normalizeExerciseLog(value) {
   const load = Number(value.loadKg);
   const loadKg = Number.isFinite(load) && load > 0 && load <= 100 ? load : null;
   const sets = Array.isArray(value.sets) ? value.sets.map(normalizeSet).filter(Boolean).slice(0, 5) : [];
+  const exerciseName = typeof value.exerciseName === 'string' ? value.exerciseName.trim().slice(0, 120) : '';
+  const equipment = typeof value.equipment === 'string' ? value.equipment.trim().slice(0, 120) : '';
+  const resistance = typeof value.resistance === 'string' ? value.resistance.trim().slice(0, 120) : '';
 
   return {
     exerciseId,
+    ...(exerciseName ? { exerciseName } : {}),
     date: value.date,
+    ...(equipment ? { equipment } : {}),
+    ...(resistance ? { resistance } : {}),
     feedback: value.feedback,
     loadKg,
     sets,

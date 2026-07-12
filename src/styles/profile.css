@@ -821,6 +821,7 @@
 }
 
 .training-profile-fields input,
+.training-profile-fields select,
 .training-profile-range-fields input,
 .training-profile-custom-weight input {
   box-sizing: border-box;
@@ -832,6 +833,29 @@
   color: #3a3033;
   background: #fff;
   font: inherit;
+}
+
+.training-profile-long-note {
+  display: grid;
+  gap: 6px;
+  color: #54494c;
+  font-size: 12px;
+  font-weight: 850;
+  margin-top: 10px;
+}
+
+.training-profile-long-note textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 76px;
+  padding: 10px;
+  border: 1px solid #eadce0;
+  border-radius: 13px;
+  background: #fffdfd;
+  color: #40363a;
+  font: inherit;
+  font-weight: 650;
+  resize: vertical;
 }
 
 .training-profile-custom-weight {

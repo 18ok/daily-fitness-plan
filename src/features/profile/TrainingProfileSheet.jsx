@@ -46,6 +46,24 @@ const FOOD_HABIT_OPTIONS = [
   { value: 'convenience_store', label: '准备方便的备选食物' },
 ];
 
+const DIET_TAKEOUT_OPTIONS = [
+  { value: 'rarely', label: '很少点外卖' },
+  { value: 'weekly_1_3', label: '每周 1–3 次' },
+  { value: 'weekly_4_plus', label: '每周 4 次或更多' },
+];
+
+const DIET_BREAKFAST_OPTIONS = [
+  { value: 'usually', label: '大多会吃' },
+  { value: 'sometimes', label: '有时会吃' },
+  { value: 'rarely', label: '经常不吃' },
+];
+
+const DIET_PROTEIN_OPTIONS = [
+  { value: 'each_meal', label: '每餐都会有' },
+  { value: 'some_meals', label: '有些餐会有' },
+  { value: 'unsure', label: '还不太确定' },
+];
+
 function todayKey() {
   const date = new Date();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -90,6 +108,8 @@ function ChoiceButton({ active, children, onClick }) {
 export function TrainingProfileSheet({ bodyTrendHistory, onClose, onSaveProfile, onSaveWeight, profile }) {
   const [draft, setDraft] = useState(() => createDraft(profile, bodyTrendHistory));
   const [customWeight, setCustomWeight] = useState('');
+  const [kettlebellWeight, setKettlebellWeight] = useState('');
+  const [machineName, setMachineName] = useState('');
   const weightWasEdited = useRef(false);
 
   function toggleDraftValue(key, value) {
@@ -97,10 +117,18 @@ export function TrainingProfileSheet({ bodyTrendHistory, onClose, onSaveProfile,
   }
 
   function toggleEquipment(value) {
-    setDraft((current) => ({
-      ...current,
-      equipment: { ...current.equipment, [value]: !current.equipment[value] },
-    }));
+    setDraft((current) => {
+      if (['kettlebell', 'gymMachines'].includes(value)) {
+        return {
+          ...current,
+          equipment: { ...current.equipment, [`${value}EditorOpen`]: !current.equipment[`${value}EditorOpen`] },
+        };
+      }
+      return {
+        ...current,
+        equipment: { ...current.equipment, [value]: !current.equipment[value] },
+      };
+    });
   }
 
   function togglePresetWeight(weight) {
@@ -135,6 +163,57 @@ export function TrainingProfileSheet({ bodyTrendHistory, onClose, onSaveProfile,
         customDumbbellKg: current.equipment.customDumbbellKg.filter((item) => item !== weight),
       },
     }));
+  }
+
+  function addKettlebellWeight() {
+    const weight = Number(kettlebellWeight);
+    if (!Number.isFinite(weight) || weight <= 0 || weight > 100) return;
+    setDraft((current) => ({
+      ...current,
+      equipment: {
+        ...current.equipment,
+        kettlebellKg: [...new Set([...current.equipment.kettlebellKg, Number(weight.toFixed(1))])]
+          .sort((left, right) => left - right),
+      },
+    }));
+    setKettlebellWeight('');
+  }
+
+  function removeKettlebellWeight(weight) {
+    setDraft((current) => ({
+      ...current,
+      equipment: {
+        ...current.equipment,
+        kettlebellKg: current.equipment.kettlebellKg.filter((item) => item !== weight),
+      },
+    }));
+  }
+
+  function addMachine() {
+    const label = machineName.trim().slice(0, 60);
+    if (!label) return;
+    setDraft((current) => ({
+      ...current,
+      equipment: {
+        ...current.equipment,
+        gymMachines: [...new Set([...current.equipment.gymMachines, label])],
+      },
+    }));
+    setMachineName('');
+  }
+
+  function removeMachine(label) {
+    setDraft((current) => ({
+      ...current,
+      equipment: {
+        ...current.equipment,
+        gymMachines: current.equipment.gymMachines.filter((item) => item !== label),
+      },
+    }));
+  }
+
+  function updateDietHabit(key, value) {
+    setDraft((current) => ({ ...current, dietHabits: { ...current.dietHabits, [key]: value } }));
   }
 
   function saveProfile() {
@@ -247,7 +326,11 @@ export function TrainingProfileSheet({ bodyTrendHistory, onClose, onSaveProfile,
             <div className="training-profile-choice-grid training-profile-equipment-grid">
               {EQUIPMENT_OPTIONS.map((item) => (
                 <ChoiceButton
-                  active={draft.equipment[item.value] === true}
+                  active={item.value === 'kettlebell'
+                    ? draft.equipment.kettlebellKg.length > 0 || draft.equipment.kettlebellEditorOpen === true
+                    : (item.value === 'gymMachines'
+                      ? draft.equipment.gymMachines.length > 0 || draft.equipment.gymMachinesEditorOpen === true
+                      : draft.equipment[item.value] === true)}
                   key={item.value}
                   onClick={() => toggleEquipment(item.value)}
                 >
@@ -289,6 +372,49 @@ export function TrainingProfileSheet({ bodyTrendHistory, onClose, onSaveProfile,
                 ))}
               </div>
             )}
+            <div className="training-profile-custom-weight">
+              <label>
+                <span>壶铃重量（kg）</span>
+                <input
+                  inputMode="decimal"
+                  min="0"
+                  onChange={(event) => setKettlebellWeight(event.target.value)}
+                  type="number"
+                  value={kettlebellWeight}
+                />
+              </label>
+              <button onClick={addKettlebellWeight} type="button">添加壶铃重量</button>
+            </div>
+            {draft.equipment.kettlebellKg.length > 0 && (
+              <div aria-label="已选壶铃重量" className="training-profile-weight-chips">
+                {draft.equipment.kettlebellKg.map((weight) => (
+                  <button key={weight} onClick={() => removeKettlebellWeight(weight)} type="button">
+                    {weight}kg ×
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="training-profile-custom-weight">
+              <label>
+                <span>健身房器械名称</span>
+                <input
+                  maxLength="60"
+                  onChange={(event) => setMachineName(event.target.value)}
+                  placeholder="例如：坐姿划船机"
+                  value={machineName}
+                />
+              </label>
+              <button onClick={addMachine} type="button">添加器械</button>
+            </div>
+            {draft.equipment.gymMachines.length > 0 && (
+              <div aria-label="已选健身房器械" className="training-profile-weight-chips">
+                {draft.equipment.gymMachines.map((label) => (
+                  <button key={label} onClick={() => removeMachine(label)} type="button">
+                    {label} ×
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="training-profile-range-fields">
               <label>
                 <span>可调哑铃最轻（kg）</span>
@@ -299,14 +425,14 @@ export function TrainingProfileSheet({ bodyTrendHistory, onClose, onSaveProfile,
                     ...current,
                     equipment: {
                       ...current.equipment,
-                      adjustableDumbbellRange: {
-                        ...(current.equipment.adjustableDumbbellRange || {}),
+                      adjustableDumbbell: {
+                        ...(current.equipment.adjustableDumbbell || {}),
                         minKg: event.target.value,
                       },
                     },
                   }))}
                   type="number"
-                  value={draft.equipment.adjustableDumbbellRange?.minKg ?? ''}
+                  value={draft.equipment.adjustableDumbbell?.minKg ?? ''}
                 />
               </label>
               <label>
@@ -318,14 +444,33 @@ export function TrainingProfileSheet({ bodyTrendHistory, onClose, onSaveProfile,
                     ...current,
                     equipment: {
                       ...current.equipment,
-                      adjustableDumbbellRange: {
-                        ...(current.equipment.adjustableDumbbellRange || {}),
+                      adjustableDumbbell: {
+                        ...(current.equipment.adjustableDumbbell || {}),
                         maxKg: event.target.value,
                       },
                     },
                   }))}
                   type="number"
-                  value={draft.equipment.adjustableDumbbellRange?.maxKg ?? ''}
+                  value={draft.equipment.adjustableDumbbell?.maxKg ?? ''}
+                />
+              </label>
+              <label>
+                <span>可调哑铃步进（kg，选填）</span>
+                <input
+                  inputMode="decimal"
+                  min="0"
+                  onChange={(event) => setDraft((current) => ({
+                    ...current,
+                    equipment: {
+                      ...current.equipment,
+                      adjustableDumbbell: {
+                        ...(current.equipment.adjustableDumbbell || {}),
+                        stepKg: event.target.value,
+                      },
+                    },
+                  }))}
+                  type="number"
+                  value={draft.equipment.adjustableDumbbell?.stepKg ?? ''}
                 />
               </label>
             </div>
@@ -344,6 +489,19 @@ export function TrainingProfileSheet({ bodyTrendHistory, onClose, onSaveProfile,
                 </ChoiceButton>
               ))}
             </div>
+          </section>
+
+          <section className="training-profile-section">
+            <h3>旧伤或常不适说明</h3>
+            <label className="training-profile-long-note">
+              <span>旧伤或常不适说明（选填）</span>
+              <textarea
+                maxLength="120"
+                onChange={(event) => setDraft((current) => ({ ...current, discomfortNote: event.target.value }))}
+                placeholder="只保存在这台设备，不会自动分析或用于诊断"
+                value={draft.discomfortNote}
+              />
+            </label>
           </section>
 
           <section className="training-profile-section">
@@ -372,6 +530,50 @@ export function TrainingProfileSheet({ bodyTrendHistory, onClose, onSaveProfile,
           {draft.goals.includes('fat_loss_food') && (
             <section className="training-profile-section">
               <h3>减脂饮食习惯</h3>
+              <div className="training-profile-fields">
+                <label>
+                  <span>外卖频率</span>
+                  <select
+                    aria-label="外卖频率"
+                    onChange={(event) => updateDietHabit('takeout', event.target.value)}
+                    value={draft.dietHabits.takeout}
+                  >
+                    <option value="">选一个更接近的情况</option>
+                    {DIET_TAKEOUT_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                  </select>
+                </label>
+                <label>
+                  <span>早餐习惯</span>
+                  <select
+                    aria-label="早餐习惯"
+                    onChange={(event) => updateDietHabit('breakfast', event.target.value)}
+                    value={draft.dietHabits.breakfast}
+                  >
+                    <option value="">选一个更接近的情况</option>
+                    {DIET_BREAKFAST_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                  </select>
+                </label>
+                <label>
+                  <span>蛋白质习惯</span>
+                  <select
+                    aria-label="蛋白质习惯"
+                    onChange={(event) => updateDietHabit('protein', event.target.value)}
+                    value={draft.dietHabits.protein}
+                  >
+                    <option value="">选一个更接近的情况</option>
+                    {DIET_PROTEIN_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                  </select>
+                </label>
+              </div>
+              <label className="training-profile-long-note">
+                <span>忌口或不想吃的食物（选填）</span>
+                <textarea
+                  maxLength="120"
+                  onChange={(event) => updateDietHabit('restrictions', event.target.value)}
+                  placeholder="只用来避开你不想吃的食物"
+                  value={draft.dietHabits.restrictions}
+                />
+              </label>
               <div className="training-profile-choice-grid">
                 {FOOD_HABIT_OPTIONS.map((item) => (
                   <ChoiceButton

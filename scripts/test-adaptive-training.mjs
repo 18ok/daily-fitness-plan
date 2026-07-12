@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
   availableDumbbellLoads,
@@ -33,15 +33,15 @@ run('training profile keeps only known values and safe dumbbell loads', () => {
     experienceLevel: 'consistent',
     movementLimits: ['jump', 'core', 'horizontal_pull', 'stand_after_sitting', 'unknown', 'jump'],
     equipment: { bodyweight: true, dumbbellKg: [3, '2', 3, 11, -1, 101] },
-    note: 'a'.repeat(121),
+    discomfortNote: 'a'.repeat(121),
   });
 
   assert.deepEqual(profile.goals, ['habit', 'shape']);
   assert.equal(profile.experienceLevel, 'consistent');
   assert.deepEqual(profile.movementLimits, ['jump', 'core', 'horizontal_pull', 'stand_after_sitting']);
   assert.equal(profile.equipment.bodyweight, true);
-  assert.equal(profile.note, 'a'.repeat(120));
-  assert.deepEqual(availableDumbbellLoads(profile), [2, 3]);
+  assert.equal(profile.discomfortNote, 'a'.repeat(120));
+  assert.deepEqual(availableDumbbellLoads(profile), [2, 3, 11]);
 });
 
 run('training profile preserves normalized local-only setup details', () => {
@@ -51,10 +51,10 @@ run('training profile preserves normalized local-only setup details', () => {
     foodHabits: ['protein_first', 'unknown', 'protein_first'],
     equipment: {
       bands: true,
-      kettlebell: true,
-      gymMachines: true,
-      customDumbbellKg: ['2.5', 12.5, 101, -1, 12.5],
-      adjustableDumbbellRange: { minKg: '2', maxKg: '24' },
+      kettlebellKg: ['8', 12, 101, -1, 12],
+      gymMachines: ['坐姿划船机', '坐姿划船机', ''],
+      dumbbellKg: ['2.5', 12.5, 101, -1, 12.5],
+      adjustableDumbbell: { minKg: '2', maxKg: '24', stepKg: '2' },
     },
   });
 
@@ -62,13 +62,57 @@ run('training profile preserves normalized local-only setup details', () => {
   assert.deepEqual(profile.trainingPlaces, ['home', 'gym']);
   assert.deepEqual(profile.foodHabits, ['protein_first']);
   assert.equal(profile.equipment.bands, true);
-  assert.equal(profile.equipment.kettlebell, true);
-  assert.equal(profile.equipment.gymMachines, true);
-  assert.deepEqual(profile.equipment.customDumbbellKg, [2.5, 12.5]);
-  assert.deepEqual(profile.equipment.adjustableDumbbellRange, { minKg: 2, maxKg: 24 });
+  assert.deepEqual(profile.equipment.kettlebellKg, [8, 12]);
+  assert.deepEqual(profile.equipment.gymMachines, ['坐姿划船机']);
+  assert.deepEqual(profile.equipment.dumbbellKg, [2.5, 12.5]);
+  assert.deepEqual(profile.equipment.adjustableDumbbell, { minKg: 2, maxKg: 24, stepKg: 2 });
 });
 
-run('available dumbbell loads keeps valid custom weights and adjustable endpoints', () => {
+run('advertised equipment has selected-only plans and logs retain equipment details', () => {
+  const shared = {
+    basePlan: buildPlan('30分钟', '白班', '家里'),
+    state: { time: '30分钟', status: '白班', condition: '家里' },
+    exerciseHistory: [],
+    cycleAdjustment: { level: 'normal' },
+  };
+  const bandsProfile = normalizeTrainingProfile({ equipment: { bands: true } });
+  const kettlebellProfile = normalizeTrainingProfile({ equipment: { kettlebellKg: [8, 4, 8] } });
+  const machineProfile = normalizeTrainingProfile({ equipment: { gymMachines: ['坐姿划船机', '坐姿划船机'] } });
+  const [bandsWorkout, kettlebellWorkout, machineWorkout] = [bandsProfile, kettlebellProfile, machineProfile]
+    .map((trainingProfile) => buildAdaptiveWorkout({ ...shared, trainingProfile }));
+
+  assert.equal(bandsWorkout.mode, 'normal');
+  assert.equal(bandsWorkout.movements.some((movement) => movement.equipmentLabel === '弹力带' && movement.suggestedLoad.loadKg === null), true);
+  assert.equal(kettlebellWorkout.mode, 'normal');
+  assert.equal(kettlebellWorkout.movements.every((movement) => [4, 8].includes(movement.suggestedLoad.loadKg)), true);
+  assert.equal(machineWorkout.mode, 'normal');
+  assert.equal(machineWorkout.movements.some((movement) => movement.equipmentLabel === '坐姿划船机'
+    && movement.suggestedLoad.action === 'machine_start' && movement.suggestedLoad.loadKg === null), true);
+
+  assert.deepEqual(normalizeExerciseHistory([{
+    exerciseId: 'band_row',
+    exerciseName: '弹力带划船',
+    date: '2026-07-12',
+    equipment: '弹力带',
+    resistance: '中等阻力',
+    feedback: 'just_right',
+    loadKg: null,
+    sets: [{ plannedReps: 8, completedReps: 8 }],
+    note: '动作慢一点',
+  }])[0], {
+    exerciseId: 'band_row',
+    exerciseName: '弹力带划船',
+    date: '2026-07-12',
+    equipment: '弹力带',
+    resistance: '中等阻力',
+    feedback: 'just_right',
+    loadKg: null,
+    sets: [{ plannedReps: 8, completedReps: 8 }],
+    note: '动作慢一点',
+  });
+});
+
+run('available dumbbell loads keeps valid custom weights and an unstepped minimum', () => {
   const profile = normalizeTrainingProfile({
     equipment: {
       dumbbellKg: [3, 2],
@@ -77,14 +121,23 @@ run('available dumbbell loads keeps valid custom weights and adjustable endpoint
     },
   });
 
-  assert.deepEqual(availableDumbbellLoads(profile), [1.5, 2, 2.5, 3, 6]);
+  assert.deepEqual(availableDumbbellLoads(profile), [1.5, 2, 2.5, 3]);
   assert.equal(availableDumbbellLoads(profile).includes(4), false);
   assert.deepEqual(availableDumbbellLoads(normalizeTrainingProfile({
     equipment: { customDumbbellKg: [2.5] },
   })), [2.5]);
   assert.deepEqual(availableDumbbellLoads(normalizeTrainingProfile({
     equipment: { adjustableDumbbellRange: { minKg: 2, maxKg: 6 } },
-  })), [2, 6]);
+  })), [2]);
+});
+
+run('adjustable dumbbells expose only the minimum until a valid step creates discrete loads', () => {
+  assert.deepEqual(availableDumbbellLoads(normalizeTrainingProfile({
+    equipment: { adjustableDumbbell: { minKg: 2, maxKg: 10 } },
+  })), [2]);
+  assert.deepEqual(availableDumbbellLoads(normalizeTrainingProfile({
+    equipment: { adjustableDumbbell: { minKg: 2, maxKg: 10, stepKg: 2 } },
+  })), [2, 4, 6, 8, 10]);
 });
 
 run('body trend history removes invalid dates and weights', () => {
@@ -204,6 +257,50 @@ run('next load is conservative for difficult and unavailable loads', () => {
     previousLog: { loadKg: 3, feedback: 'just_right', sets: [{ plannedReps: 8, completedReps: 8 }] },
     todayMode: 'normal',
   }), { loadKg: 2, action: 'keep', reason: '上次感觉刚好，保持当前重量' });
+});
+
+run('adaptive workout replaces a latest uncomfortable action with a no-load low-risk alternative', () => {
+  const workout = buildAdaptiveWorkout({
+    basePlan: buildPlan('30分钟', '白班', '家里'),
+    state: { time: '30分钟', status: '白班', condition: '家里' },
+    trainingProfile: normalizeTrainingProfile({
+      goals: ['shape'],
+      equipment: { dumbbellKg: [2, 3] },
+    }),
+    exerciseHistory: [{
+      exerciseId: 'dumbbell_row',
+      date: '2026-07-11',
+      feedback: 'uncomfortable',
+      loadKg: 2,
+      sets: [{ plannedReps: 8, completedReps: 8 }],
+    }],
+    cycleAdjustment: { level: 'normal' },
+  });
+
+  assert.equal(workout.movements.some((movement) => movement.id === 'dumbbell_row'), false);
+  assert.equal(workout.movements.some((movement) => movement.suggestedLoad.loadKg === null && movement.isSafetyAlternative), true);
+  assert.equal(workout.movements.some((movement) => movement.id === 'goblet_squat'), true);
+  assert.match(workout.safetyNotice, /咨询/);
+});
+
+run('an uncomfortable kettlebell action cannot keep a selectable load on its replacement', () => {
+  const workout = buildAdaptiveWorkout({
+    basePlan: buildPlan('30分钟', '白班', '家里'),
+    state: { time: '30分钟', status: '白班', condition: '家里' },
+    trainingProfile: normalizeTrainingProfile({ equipment: { kettlebellKg: [4] } }),
+    exerciseHistory: [{
+      exerciseId: 'kettlebell_deadlift',
+      date: '2026-07-11',
+      feedback: 'uncomfortable',
+      loadKg: 4,
+      sets: [{ plannedReps: 8, completedReps: 8 }],
+    }],
+    cycleAdjustment: { level: 'normal' },
+  });
+
+  const replacement = workout.movements.find((movement) => movement.isSafetyAlternative);
+  assert.equal(replacement.suggestedLoad.loadKg, null);
+  assert.equal(replacement.loadKind, 'bodyweight');
 });
 
 run('next load stops or starts with the required safe defaults', () => {
@@ -371,6 +468,7 @@ run('adaptive workout de-duplicates replacement movement ids', () => {
 
 run('normalized bodyweight equipment reaches the adaptive composer', () => {
   const trainingProfile = normalizeTrainingProfile({
+    experienceLevel: 'consistent',
     equipment: { bodyweight: true, dumbbellKg: [2] },
   });
   const workout = buildAdaptiveWorkout({
@@ -428,6 +526,35 @@ run('fat loss food guide omits calories', () => {
   });
 
   assert.equal('calories' in workout.mealGuide, false);
+});
+
+run('local discomfort notes stay unparsed while explicit food choices tailor fat-loss wording', () => {
+  const profile = normalizeTrainingProfile({
+    goals: ['fat_loss_food'],
+    discomfortNote: '肩膀偶尔不舒服'.repeat(20),
+    dietHabits: {
+      takeout: 'weekly_4_plus',
+      breakfast: 'rarely',
+      protein: 'unsure',
+      restrictions: '不想吃海鲜'.repeat(20),
+    },
+    equipment: { bands: true },
+  });
+  const workout = buildAdaptiveWorkout({
+    basePlan: buildPlan('30分钟', '白班', '家里'),
+    state: { time: '30分钟', status: '白班', condition: '家里' },
+    trainingProfile: profile,
+    exerciseHistory: [],
+    cycleAdjustment: { level: 'normal' },
+  });
+
+  assert.equal(profile.discomfortNote.length, 120);
+  assert.deepEqual(profile.dietHabits, {
+    takeout: 'weekly_4_plus', breakfast: 'rarely', protein: 'unsure', restrictions: '不想吃海鲜'.repeat(20).slice(0, 120),
+  });
+  assert.match(workout.mealGuide.suggestion, /外卖/);
+  assert.match(workout.mealGuide.reminder, /早餐/);
+  assert.equal(JSON.stringify(workout).includes(profile.discomfortNote), false);
 });
 
 run('local snapshots omit training profiles and body records', () => {
@@ -494,6 +621,29 @@ run('light and recovery workouts use at most two sets per movement', () => {
     assert.equal(workout.movements.length > 0, true);
     assert.equal(workout.movements.every((item) => item.sets <= 2), true);
   });
+});
+
+run('training foundation changes conservative movement volume and repetition guidance', () => {
+  const shared = {
+    basePlan: buildPlan('30分钟', '白班', '家里'),
+    state: { time: '30分钟', status: '白班', condition: '家里' },
+    exerciseHistory: [],
+    cycleAdjustment: { level: 'normal' },
+  };
+  const workouts = ['new', 'occasional', 'consistent'].map((experienceLevel) => buildAdaptiveWorkout({
+    ...shared,
+    trainingProfile: normalizeTrainingProfile({ experienceLevel, equipment: { bodyweight: true } }),
+  }));
+
+  assert.deepEqual(workouts.map((workout) => workout.movements.length), [2, 3, 4]);
+  assert.deepEqual(workouts.map((workout) => workout.movements[0].sets), [1, 2, 2]);
+  assert.deepEqual(workouts.map((workout) => workout.movements[0].targetReps), ['6–8 次', '6–8 次', '8–10 次']);
+});
+
+run('maintenance verification includes adaptive training checks', () => {
+  const packagePath = fileURLToPath(new URL('../package.json', import.meta.url));
+  const scripts = JSON.parse(readFileSync(packagePath, 'utf8')).scripts;
+  assert.match(scripts['verify:maintenance'], /npm run test:adaptive/);
 });
 
 console.log('\nAll adaptive training tests passed.');

@@ -37,11 +37,11 @@ try {
       localStorage.clear();
       localStorage.setItem('training-profile', JSON.stringify({
         goals: ['habit'],
-        experienceLevel: 'new',
+        experienceLevel: 'occasional',
         equipment: {
           bodyweight: true,
           customDumbbellKg: [2.5],
-          adjustableDumbbellRange: { minKg: 2, maxKg: 6 },
+          adjustableDumbbell: { minKg: 2, maxKg: 6, stepKg: 2 },
         },
         safetyFlag: 'none',
       }));
@@ -282,7 +282,12 @@ try {
   await page.getByText('训练偏好', { exact: true }).click();
   await expectVisible(page.getByRole('dialog', { name: '训练资料设置', exact: true }), 'Training profile sheet');
   await page.getByRole('button', { name: '久坐后起身', exact: true }).click();
-  await page.getByRole('button', { name: '建立习惯', exact: true }).click();
+  await page.getByRole('button', { name: '减脂饮食习惯', exact: true }).click();
+  await page.getByLabel('旧伤或常不适说明（选填）', { exact: true }).fill('偶尔觉得紧，先慢一点');
+  await page.getByLabel('外卖频率', { exact: true }).selectOption('weekly_4_plus');
+  await page.getByLabel('早餐习惯', { exact: true }).selectOption('rarely');
+  await page.getByLabel('蛋白质习惯', { exact: true }).selectOption('unsure');
+  await page.getByLabel('忌口或不想吃的食物（选填）', { exact: true }).fill('不想吃海鲜');
   await page.getByRole('button', { name: '从没练过', exact: true }).click();
   await page.getByLabel('身高（cm）', { exact: true }).fill('165.5');
   await page.getByLabel('本周体重（kg）', { exact: true }).fill('61.2');
@@ -301,11 +306,13 @@ try {
   await page.waitForFunction(() => {
     const profile = JSON.parse(localStorage.getItem('training-profile') || '{}');
     const trend = JSON.parse(localStorage.getItem('body-trend-history') || '[]');
-    return profile.goal === 'habit'
+    return profile.goal === 'fat_loss_food'
       && profile.heightCm === 165.5
       && profile.movementLimits?.includes('stand_after_sitting')
       && profile.equipment?.bands === true
       && profile.equipment?.customDumbbellKg?.includes(2.5)
+      && profile.discomfortNote === '偶尔觉得紧，先慢一点'
+      && profile.dietHabits?.takeout === 'weekly_4_plus'
       && trend.length === 1
       && trend[0]?.weightKg === 61.2;
   });
@@ -413,6 +420,89 @@ try {
   );
   await storageFailureContext.close();
   console.log('ok - Today remains usable when localStorage writes fail');
+
+  const equipmentContext = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const equipmentPage = await equipmentContext.newPage();
+  await equipmentPage.addInitScript(() => {
+    localStorage.clear();
+    localStorage.setItem('training-profile', JSON.stringify({
+      experienceLevel: 'occasional',
+      equipment: { bands: true },
+      safetyFlag: 'none',
+    }));
+  });
+  await equipmentPage.goto(origin, { waitUntil: 'networkidle' });
+  await equipmentPage.getByRole('button', { name: '30分钟', exact: true }).click();
+  await equipmentPage.getByRole('button', { name: '白班', exact: true }).click();
+  await equipmentPage.getByRole('button', { name: '家里', exact: true }).click();
+  await equipmentPage.getByRole('button', { name: '今天就按这个做', exact: true }).click();
+  await equipmentPage.getByRole('button', { name: '记录第 1 个动作', exact: true }).click();
+  await expectVisible(equipmentPage.getByRole('button', { name: '弹力带', exact: true }), 'Band action log choice');
+  assert.equal(await equipmentPage.locator('.adaptive-profile-hint').count(), 0, 'Bands-only profile should not request unavailable setup');
+  await equipmentPage.getByRole('button', { name: '弹力带', exact: true }).click();
+  await equipmentPage.getByRole('button', { name: '第 1 组完成 8 次', exact: true }).click();
+  await equipmentPage.getByRole('button', { name: '第 2 组完成 8 次', exact: true }).click();
+  await equipmentPage.getByRole('button', { name: '刚刚好', exact: true }).click();
+  await equipmentPage.getByRole('button', { name: '保存这次动作', exact: true }).click();
+  await equipmentPage.waitForFunction(() => JSON.parse(localStorage.getItem('exercise-session-history') || '[]')
+    .some((item) => item.equipment === '弹力带' && item.loadKg === null));
+  await equipmentContext.close();
+  console.log('ok - bands-only plan and action log stay local');
+
+  const machineContext = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const machinePage = await machineContext.newPage();
+  await machinePage.addInitScript(() => {
+    localStorage.clear();
+    localStorage.setItem('training-profile', JSON.stringify({
+      experienceLevel: 'occasional',
+      equipment: { gymMachines: ['坐姿划船机'] },
+      safetyFlag: 'none',
+    }));
+  });
+  await machinePage.goto(origin, { waitUntil: 'networkidle' });
+  await machinePage.getByRole('button', { name: '30分钟', exact: true }).click();
+  await machinePage.getByRole('button', { name: '白班', exact: true }).click();
+  await machinePage.getByRole('button', { name: '家里', exact: true }).click();
+  await machinePage.getByRole('button', { name: '今天就按这个做', exact: true }).click();
+  await machinePage.getByRole('button', { name: '记录第 1 个动作', exact: true }).click();
+  await expectVisible(machinePage.getByRole('button', { name: '最轻档', exact: true }), 'Machine lightest-setting log choice');
+  await machinePage.getByRole('button', { name: '最轻档', exact: true }).click();
+  await machinePage.getByLabel('这台器械的实际重量（kg，选填）', { exact: true }).fill('20');
+  await machinePage.getByRole('button', { name: '第 1 组完成 8 次', exact: true }).click();
+  await machinePage.getByRole('button', { name: '第 2 组完成 8 次', exact: true }).click();
+  await machinePage.getByRole('button', { name: '刚刚好', exact: true }).click();
+  await machinePage.getByRole('button', { name: '保存这次动作', exact: true }).click();
+  await machinePage.waitForFunction(() => JSON.parse(localStorage.getItem('exercise-session-history') || '[]')
+    .some((item) => item.equipment === '坐姿划船机' && item.loadKg === 20));
+  await machineContext.close();
+  console.log('ok - machine-only plan starts at the lightest setting and logs actual kg locally');
+
+  const kettlebellContext = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const kettlebellPage = await kettlebellContext.newPage();
+  await kettlebellPage.addInitScript(() => {
+    localStorage.clear();
+    localStorage.setItem('training-profile', JSON.stringify({
+      experienceLevel: 'occasional',
+      equipment: { kettlebellKg: [4, 8] },
+      safetyFlag: 'none',
+    }));
+  });
+  await kettlebellPage.goto(origin, { waitUntil: 'networkidle' });
+  await kettlebellPage.getByRole('button', { name: '30分钟', exact: true }).click();
+  await kettlebellPage.getByRole('button', { name: '白班', exact: true }).click();
+  await kettlebellPage.getByRole('button', { name: '家里', exact: true }).click();
+  await kettlebellPage.getByRole('button', { name: '今天就按这个做', exact: true }).click();
+  await kettlebellPage.getByRole('button', { name: '记录第 1 个动作', exact: true }).click();
+  await expectVisible(kettlebellPage.getByRole('button', { name: '4kg', exact: true }), 'Selected kettlebell load choice');
+  await kettlebellPage.getByRole('button', { name: '4kg', exact: true }).click();
+  await kettlebellPage.getByRole('button', { name: '第 1 组完成 8 次', exact: true }).click();
+  await kettlebellPage.getByRole('button', { name: '第 2 组完成 8 次', exact: true }).click();
+  await kettlebellPage.getByRole('button', { name: '刚刚好', exact: true }).click();
+  await kettlebellPage.getByRole('button', { name: '保存这次动作', exact: true }).click();
+  await kettlebellPage.waitForFunction(() => JSON.parse(localStorage.getItem('exercise-session-history') || '[]')
+    .some((item) => item.equipment === '壶铃' && item.loadKg === 4));
+  await kettlebellContext.close();
+  console.log('ok - kettlebell-only plan logs only the selected kettlebell load locally');
 
   assert.deepEqual(pageErrors, [], `Page errors:\n${pageErrors.join('\n')}`);
   assert.deepEqual(consoleErrors, [], `Console errors:\n${consoleErrors.join('\n')}`);
