@@ -28,14 +28,14 @@ run('training profile keeps only known values and safe dumbbell loads', () => {
   const profile = normalizeTrainingProfile({
     goals: ['habit', 'unknown', 'shape', 'habit'],
     experienceLevel: 'consistent',
-    movementLimits: ['jump', 'core', 'unknown', 'jump'],
+    movementLimits: ['jump', 'core', 'horizontal_pull', 'unknown', 'jump'],
     equipment: { bodyweight: true, dumbbellKg: [3, '2', 3, 11, -1, 101] },
     note: 'a'.repeat(121),
   });
 
   assert.deepEqual(profile.goals, ['habit', 'shape']);
   assert.equal(profile.experienceLevel, 'consistent');
-  assert.deepEqual(profile.movementLimits, ['jump', 'core']);
+  assert.deepEqual(profile.movementLimits, ['jump', 'core', 'horizontal_pull']);
   assert.equal(profile.equipment.bodyweight, true);
   assert.equal(profile.note, 'a'.repeat(120));
   assert.deepEqual(availableDumbbellLoads(profile), [2, 3]);
@@ -171,19 +171,24 @@ run('upserting an exercise log replaces the matching date and exercise', () => {
 });
 
 run('adaptive workout replaces an avoided movement and starts from the smallest owned load', () => {
+  const trainingProfile = normalizeTrainingProfile({
+    goal: 'shape',
+    experience: 'new',
+    equipment: { bodyweight: true, dumbbellKg: [2, 3] },
+    avoidMovements: ['squat'],
+    safetyFlag: 'none',
+  });
   const workout = buildAdaptiveWorkout({
     basePlan: buildPlan('30分钟', '白班', '家里'),
     state: { time: '30分钟', status: '白班', condition: '家里' },
-    trainingProfile: normalizeTrainingProfile({
-      goals: ['shape'],
-      experienceLevel: 'new',
-      equipment: { bodyweight: true, dumbbellKg: [2, 3] },
-      movementLimits: ['squat'],
-    }),
+    trainingProfile,
     exerciseHistory: [],
     cycleAdjustment: { level: 'normal' },
   });
 
+  assert.deepEqual(trainingProfile.goals, ['shape']);
+  assert.equal(trainingProfile.experienceLevel, 'new');
+  assert.deepEqual(trainingProfile.movementLimits, ['squat']);
   assert.equal(workout.movements.some((item) => item.id === 'goblet_squat'), false);
   assert.equal(workout.movements.some((item) => item.replacement?.includes('自重')), true);
   assert.equal(workout.movements[0].suggestedLoad.loadKg, 2);
@@ -293,6 +298,23 @@ run('adaptive workout omits a limited core movement without a replacement', () =
 
   assert.equal(workout.movements.length > 0, true);
   assert.equal(workout.movements.some((item) => item.id === 'dead_bug'), false);
+});
+
+run('adaptive workout normalizes and omits a limited horizontal pull', () => {
+  const trainingProfile = normalizeTrainingProfile({
+    equipment: { bodyweight: true, dumbbellKg: [2] },
+    avoidMovements: ['horizontal_pull'],
+  });
+  const workout = buildAdaptiveWorkout({
+    basePlan: buildPlan('45分钟', '白班', '家里'),
+    state: { time: '45分钟', status: '白班', condition: '家里' },
+    trainingProfile,
+    exerciseHistory: [],
+    cycleAdjustment: { level: 'normal' },
+  });
+
+  assert.deepEqual(trainingProfile.movementLimits, ['horizontal_pull']);
+  assert.equal(workout.movements.some((item) => item.id === 'dumbbell_row'), false);
 });
 
 run('fat loss food guide omits calories', () => {

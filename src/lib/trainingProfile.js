@@ -1,6 +1,6 @@
 export const TRAINING_GOALS = ['habit', 'shape', 'fat_loss_food'];
 export const EXPERIENCE_LEVELS = ['new', 'occasional', 'consistent'];
-export const AVOID_MOVEMENTS = ['squat', 'hinge', 'overhead_press', 'horizontal_push', 'core', 'jump', 'stand_after_sitting'];
+export const AVOID_MOVEMENTS = ['squat', 'hinge', 'overhead_press', 'horizontal_pull', 'horizontal_push', 'core', 'jump', 'stand_after_sitting'];
 export const DUMBBELL_PRESETS = [0.5, 1, 1.5, 2, 3, 4, 5, 7.5, 10];
 const SAFETY_FLAGS = ['none', 'suggest_rest'];
 
@@ -16,6 +16,11 @@ function isValidDate(value) {
 function knownValues(values, allowed) {
   if (!Array.isArray(values)) return [];
   return [...new Set(values.filter((value) => allowed.includes(value)))];
+}
+
+function knownValuesWithAlias(values, alias, allowed) {
+  const aliasValues = typeof alias === 'string' ? [alias] : alias;
+  return [...new Set([...knownValues(values, allowed), ...knownValues(aliasValues, allowed)])];
 }
 
 function cleanText(value) {
@@ -40,9 +45,11 @@ export function normalizeTrainingProfile(value) {
   const equipment = profile.equipment && typeof profile.equipment === 'object' ? profile.equipment : {};
 
   return {
-    goals: knownValues(profile.goals, TRAINING_GOALS),
-    experienceLevel: EXPERIENCE_LEVELS.includes(profile.experienceLevel) ? profile.experienceLevel : 'new',
-    movementLimits: knownValues(profile.movementLimits, AVOID_MOVEMENTS),
+    goals: knownValuesWithAlias(profile.goals, profile.goal, TRAINING_GOALS),
+    experienceLevel: EXPERIENCE_LEVELS.includes(profile.experienceLevel)
+      ? profile.experienceLevel
+      : (EXPERIENCE_LEVELS.includes(profile.experience) ? profile.experience : 'new'),
+    movementLimits: knownValuesWithAlias(profile.movementLimits, profile.avoidMovements, AVOID_MOVEMENTS),
     equipment: {
       bodyweight: equipment.bodyweight === true,
       dumbbellKg: normalizedPresetLoads(equipment.dumbbellKg),
