@@ -11,6 +11,8 @@ import {
   recommendNextLoad,
   upsertExerciseLog,
 } from '../src/lib/exerciseHistory.js';
+import { buildPlan } from '../src/features/today/planBuilder.js';
+import { buildAdaptiveWorkout } from '../src/features/today/adaptiveWorkout.js';
 
 function run(name, fn) {
   try {
@@ -164,6 +166,64 @@ run('upserting an exercise log replaces the matching date and exercise', () => {
   assert.equal(history.length, 2);
   assert.deepEqual(history[0], {
     exerciseId: 'row', date: '2026-07-01', feedback: 'too_easy', loadKg: 3, sets: [], note: '',
+  });
+});
+
+run('adaptive workout replaces an avoided movement and starts from the smallest owned load', () => {
+  const workout = buildAdaptiveWorkout({
+    basePlan: buildPlan('30分钟', '白班', '家里'),
+    state: { time: '30分钟', status: '白班', condition: '家里' },
+    trainingProfile: normalizeTrainingProfile({
+      goals: ['shape'],
+      experienceLevel: 'new',
+      equipment: { dumbbellKg: [2, 3] },
+      movementLimits: ['squat'],
+    }),
+    exerciseHistory: [],
+    cycleAdjustment: { level: 'normal' },
+  });
+
+  assert.equal(workout.movements.some((item) => item.id === 'goblet_squat'), false);
+  assert.equal(workout.movements.some((item) => item.replacement?.includes('自重')), true);
+  assert.equal(workout.movements[0].suggestedLoad.loadKg, 2);
+});
+
+run('adaptive workout suggests rest for a safety flag', () => {
+  const workout = buildAdaptiveWorkout({
+    basePlan: buildPlan('30分钟', '白班', '家里'),
+    state: { time: '30分钟', status: '白班', condition: '家里' },
+    trainingProfile: normalizeTrainingProfile({ goals: ['shape'] }),
+    exerciseHistory: [],
+    cycleAdjustment: { level: 'suggest_rest' },
+  });
+
+  assert.equal(workout.mode, 'suggest_rest');
+  assert.equal(workout.movements.length, 0);
+});
+
+run('fat loss food guide omits calories', () => {
+  const workout = buildAdaptiveWorkout({
+    basePlan: buildPlan('30分钟', '白班', '家里'),
+    state: { time: '30分钟', status: '白班', condition: '家里' },
+    trainingProfile: normalizeTrainingProfile({ goals: ['fat_loss_food'] }),
+    exerciseHistory: [],
+    cycleAdjustment: { level: 'normal' },
+  });
+
+  assert.equal('calories' in workout.mealGuide, false);
+});
+
+run('light and recovery workouts use at most two sets per movement', () => {
+  ['light', 'recovery'].forEach((level) => {
+    const workout = buildAdaptiveWorkout({
+      basePlan: buildPlan('30分钟', '白班', '家里'),
+      state: { time: '30分钟', status: '白班', condition: '家里' },
+      trainingProfile: normalizeTrainingProfile({ goals: ['shape'] }),
+      exerciseHistory: [],
+      cycleAdjustment: { level },
+    });
+
+    assert.equal(workout.movements.every((item) => item.sets <= 2), true);
   });
 });
 

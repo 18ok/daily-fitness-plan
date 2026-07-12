@@ -108,10 +108,9 @@ function cycleStatusLabel(value) {
   return periodStatusOptions.find((option) => option.value === value)?.label || '';
 }
 
-export function PlanCalendar() {
+export function PlanCalendar({ cycleLogs, setCycleLogs }) {
   const [planHistory] = useLocalStorageState('daily-plan-history', []);
   const [careHistory] = useLocalStorageState('care-history', []);
-  const [cycleLogs, setCycleLogs] = useLocalStorageState('cycle-logs', []);
   const [cycleSettings, setCycleSettings] = useLocalStorageState('cycle-settings', { cloudSyncConsent: false });
   const today = useMemo(() => new Date(), []);
   const todayKey = localDateKey(today);

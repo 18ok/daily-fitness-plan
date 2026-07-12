@@ -49,7 +49,7 @@ function browserStorageAvailable() {
   }
 }
 
-export function TodayPage({ state, setState, plan }) {
+export function TodayPage({ adaptiveWorkout, exerciseHistory, plan, setExerciseHistory, state, setState }) {
   const [planHistory, setPlanHistory] = useLocalStorageState('daily-plan-history', []);
   const [storageAvailable] = useState(browserStorageAvailable);
   const pageRef = useRef(null);
@@ -185,13 +185,35 @@ export function TodayPage({ state, setState, plan }) {
             sticker={cheerRabbit}
             alt="加油兔子贴纸"
           />
+          {adaptiveWorkout && (
+            <section className={`adaptive-workout is-${adaptiveWorkout.mode}`} aria-live="polite">
+              <div>
+                <span>今天的组合动作</span>
+                <h3>{adaptiveWorkout.mode === 'suggest_rest' ? '今天先休息' : '按自己的感受慢慢做'}</h3>
+                <p>{adaptiveWorkout.safetyNotice}</p>
+              </div>
+              {adaptiveWorkout.movements.length > 0 && (
+                <ul>
+                  {adaptiveWorkout.movements.map((movement) => (
+                    <li key={movement.id}>
+                      <strong>{movement.name}</strong>
+                      <span>{movement.equipmentLabel} · {movement.sets} 组 · {movement.targetReps}</span>
+                      <small>{movement.suggestedLoad.guidance}</small>
+                      {movement.replacement && <small>{movement.replacement}</small>}
+                      <small>{movement.stopHint}</small>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
           <ResultCard
             tone="lemon"
             icon={Utensils}
             title="吃饭"
-            subtitle={plan.foodTitle}
-            detail={plan.food}
-            chips={state.condition === '速食便利店' ? ['便利店', '即食', '少油甜'] : ['高蛋白', '易消化', '少油甜']}
+            subtitle={adaptiveWorkout?.mealGuide.title || plan.foodTitle}
+            detail={adaptiveWorkout?.mealGuide.suggestion || plan.food}
+            chips={adaptiveWorkout?.mealGuide.plate || (state.condition === '速食便利店' ? ['便利店', '即食', '少油甜'] : ['高蛋白', '易消化', '少油甜'])}
             sticker={foodCat}
             alt="吃饭猫贴纸"
           />

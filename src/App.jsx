@@ -7,6 +7,12 @@ import { LibraryPage } from './features/library/LibraryPage';
 import { ProfilePage } from './features/profile/ProfilePage';
 import { RecordPage } from './features/record/RecordPage';
 import { StickersPage } from './features/stickers/StickersPage';
+import { localDateKey } from './lib/careHistory';
+import { normalizeCycleLogs } from './lib/cycleTracking';
+import { getCycleTrainingAdjustment } from './lib/cycleTrainingAdjustment';
+import { normalizeExerciseHistory } from './lib/exerciseHistory';
+import { normalizeTrainingProfile } from './lib/trainingProfile';
+import { buildAdaptiveWorkout } from './features/today/adaptiveWorkout';
 import { buildPlan } from './features/today/planBuilder';
 import { TodayPage } from './features/today/TodayPage';
 
@@ -18,10 +24,35 @@ function App() {
     status: '夜班后',
     condition: '健身房',
   });
+  const [trainingProfile, setTrainingProfile] = useLocalStorageState('training-profile', {});
+  const [bodyTrendHistory, setBodyTrendHistory] = useLocalStorageState('body-trend-history', []);
+  const [exerciseHistory, setExerciseHistory] = useLocalStorageState('exercise-session-history', []);
+  const [cycleLogs, setCycleLogs] = useLocalStorageState('cycle-logs', []);
   const state = storedState && typeof storedState === 'object' ? storedState : {};
+  const normalizedTrainingProfile = useMemo(() => normalizeTrainingProfile(trainingProfile), [trainingProfile]);
+  const normalizedExerciseHistory = useMemo(() => normalizeExerciseHistory(exerciseHistory), [exerciseHistory]);
+  const normalizedCycleLogs = useMemo(() => normalizeCycleLogs(cycleLogs), [cycleLogs]);
+  const todayCycleLog = useMemo(
+    () => normalizedCycleLogs.find((entry) => entry.date === localDateKey()) || null,
+    [normalizedCycleLogs],
+  );
+  const cycleAdjustment = useMemo(
+    () => getCycleTrainingAdjustment(todayCycleLog),
+    [todayCycleLog],
+  );
   const plan = useMemo(
     () => buildPlan(state.time, state.status, state.condition),
     [state.condition, state.status, state.time],
+  );
+  const adaptiveWorkout = useMemo(
+    () => buildAdaptiveWorkout({
+      basePlan: plan,
+      state,
+      trainingProfile: normalizedTrainingProfile,
+      exerciseHistory: normalizedExerciseHistory,
+      cycleAdjustment,
+    }),
+    [cycleAdjustment, normalizedExerciseHistory, normalizedTrainingProfile, plan, state],
   );
   const isNightRecovery = state.status === '夜班后';
 
@@ -30,10 +61,19 @@ function App() {
       <div className={`mobile-shell ${isNightRecovery ? 'night-recovery' : ''}`}>
         <Header calendarOpen={calendarOpen} onCalendarToggle={() => setCalendarOpen((open) => !open)} />
         {calendarOpen ? (
-          <PlanCalendar />
+          <PlanCalendar cycleLogs={cycleLogs} setCycleLogs={setCycleLogs} />
         ) : (
           <>
-            {activeTab === 'today' && <TodayPage state={state} setState={setState} plan={plan} />}
+            {activeTab === 'today' && (
+              <TodayPage
+                adaptiveWorkout={adaptiveWorkout}
+                exerciseHistory={normalizedExerciseHistory}
+                plan={plan}
+                setExerciseHistory={setExerciseHistory}
+                setState={setState}
+                state={state}
+              />
+            )}
             {activeTab === 'record' && <RecordPage state={state} />}
             {activeTab === 'library' && <LibraryPage state={state} setState={setState} setActiveTab={setActiveTab} />}
             {activeTab === 'stickers' && <StickersPage state={state} />}
