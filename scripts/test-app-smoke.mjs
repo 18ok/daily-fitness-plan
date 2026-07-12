@@ -35,6 +35,12 @@ try {
   await page.addInitScript(() => {
     if (sessionStorage.getItem('app-smoke-storage-initialized') !== 'true') {
       localStorage.clear();
+      localStorage.setItem('training-profile', JSON.stringify({
+        goals: ['habit'],
+        experienceLevel: 'new',
+        equipment: { bodyweight: true, dumbbellKg: [2] },
+        safetyFlag: 'none',
+      }));
       sessionStorage.setItem('app-smoke-storage-initialized', 'true');
       sessionStorage.setItem('app-smoke-storage-clear-count', '1');
     }
@@ -121,6 +127,18 @@ try {
     'Confirmed state must keep one same-day entry',
   );
   console.log('ok - first-visit Today preview and one-tap confirmation');
+
+  await expectVisible(page.getByText('今天做什么？', { exact: true }), 'Adaptive workout card');
+  await page.getByRole('button', { name: '记录第 1 个动作', exact: true }).click();
+  await page.getByRole('button', { name: '2kg', exact: true }).click();
+  await page.getByRole('button', { name: '第 1 组完成 8 次', exact: true }).click();
+  await page.getByRole('button', { name: '第 2 组完成 8 次', exact: true }).click();
+  await page.getByRole('button', { name: '刚刚好', exact: true }).click();
+  await page.getByPlaceholder('留一句给下次的自己（选填）').fill('动作慢一点更稳');
+  await page.getByRole('button', { name: '保存这次动作', exact: true }).click();
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('exercise-session-history') || '[]')
+    .some((item) => item.loadKg === 2 && item.note === '动作慢一点更稳'));
+  console.log('ok - adaptive workout load, sets, feedback and note persist locally');
 
   await expectVisible(page.getByText('这个计划适合你今天吗？', { exact: true }), 'Pilot feedback prompt');
   await page.getByRole('button', { name: '太难', exact: true }).click();

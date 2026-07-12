@@ -18,6 +18,7 @@ import { ResultCard } from '../../components/common/ResultCard';
 import { ChoiceGroup, OptionChip } from '../../components/common/SelectionControls';
 import { Sticker } from '../../components/common/Sticker';
 import { PilotFeedbackPrompt } from './PilotFeedbackPrompt';
+import { AdaptiveWorkoutCard } from './AdaptiveWorkoutCard';
 
 import planCat from '../../../assets/stickers/cat-companion/illustrations_clean/05_magic_wand_cat.png';
 import foodCat from '../../../assets/stickers/cat-companion/illustrations_clean/04_sunflower_teddy_cat.png';
@@ -49,7 +50,7 @@ function browserStorageAvailable() {
   }
 }
 
-export function TodayPage({ adaptiveWorkout, exerciseHistory, plan, setExerciseHistory, state, setState }) {
+export function TodayPage({ adaptiveWorkout, exerciseHistory, plan, profile, setExerciseHistory, state, setState }) {
   const [planHistory, setPlanHistory] = useLocalStorageState('daily-plan-history', []);
   const [storageAvailable] = useState(browserStorageAvailable);
   const pageRef = useRef(null);
@@ -185,28 +186,6 @@ export function TodayPage({ adaptiveWorkout, exerciseHistory, plan, setExerciseH
             sticker={cheerRabbit}
             alt="加油兔子贴纸"
           />
-          {adaptiveWorkout && (
-            <section className={`adaptive-workout is-${adaptiveWorkout.mode}`} aria-live="polite">
-              <div>
-                <span>今天的组合动作</span>
-                <h3>{adaptiveWorkout.mode === 'suggest_rest' ? '今天先休息' : '按自己的感受慢慢做'}</h3>
-                <p>{adaptiveWorkout.safetyNotice}</p>
-              </div>
-              {adaptiveWorkout.movements.length > 0 && (
-                <ul>
-                  {adaptiveWorkout.movements.map((movement) => (
-                    <li key={movement.id}>
-                      <strong>{movement.name}</strong>
-                      <span>{movement.equipmentLabel} · {movement.sets} 组 · {movement.targetReps}</span>
-                      <small>{movement.suggestedLoad.guidance}</small>
-                      {movement.replacement && <small>{movement.replacement}</small>}
-                      <small>{movement.stopHint}</small>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          )}
           <ResultCard
             tone="lemon"
             icon={Utensils}
@@ -245,6 +224,14 @@ export function TodayPage({ adaptiveWorkout, exerciseHistory, plan, setExerciseH
             <Save size={17} />
             {confirmed ? '今天计划已确认' : '今天就按这个做'}
           </button>
+          {confirmed && adaptiveWorkout && (
+            <AdaptiveWorkoutCard
+              exerciseHistory={exerciseHistory}
+              onSaveLog={setExerciseHistory}
+              profile={profile}
+              workout={adaptiveWorkout}
+            />
+          )}
           <PilotFeedbackPrompt
             confirmed={confirmed}
             contentVersion={1}

@@ -69,6 +69,7 @@ function App() {
                 adaptiveWorkout={adaptiveWorkout}
                 exerciseHistory={normalizedExerciseHistory}
                 plan={plan}
+                profile={normalizedTrainingProfile}
                 setExerciseHistory={setExerciseHistory}
                 setState={setState}
                 state={state}
