@@ -195,6 +195,23 @@ try {
   await expectVisible(page.getByPlaceholder('登录邮箱'), 'Signed-out email field');
   await expectVisible(page.getByPlaceholder('登录密码'), 'Signed-out password field');
   await expectVisible(page.getByRole('button', { name: '登录并同步', exact: true }), 'Signed-out login action');
+  await page.getByPlaceholder('登录邮箱').fill('pilot@example.com');
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: '我的', exact: true }).click();
+  assert.equal(
+    await page.getByPlaceholder('登录邮箱').inputValue(),
+    'pilot@example.com',
+    'The last login email should remain available after a reload',
+  );
+  await page.evaluate(() => {
+    localStorage.setItem('profile-pending-confirmation-email', JSON.stringify('pilot@example.com'));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: '我的', exact: true }).click();
+  await expectVisible(
+    page.getByRole('button', { name: '没收到验证邮件？重新发送', exact: true }),
+    'Confirmation email resend action',
+  );
   await page.getByRole('button', { name: '还没有账号？创建一个', exact: true }).click();
   await expectVisible(page.getByPlaceholder('再次输入密码'), 'Registration password confirmation');
   await expectVisible(page.getByRole('button', { name: '创建账号', exact: true }), 'Registration action');

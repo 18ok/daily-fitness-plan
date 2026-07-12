@@ -71,7 +71,8 @@ export function ProfilePage() {
   });
   const [session, setSession] = useState(null);
   const [authMode, setAuthMode] = useState('signIn');
-  const [loginEmail, setLoginEmail] = useState('');
+  const [loginEmail, setLoginEmail] = useLocalStorageState('profile-last-login-email', '');
+  const [pendingConfirmationEmail, setPendingConfirmationEmail] = useLocalStorageState('profile-pending-confirmation-email', '');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginPasswordConfirm, setLoginPasswordConfirm] = useState('');
   const [syncBusy, setSyncBusy] = useState(false);
@@ -190,11 +191,17 @@ export function ProfilePage() {
       if (error) throw error;
       setSession(data.session || null);
       setLoginPassword('');
+      setPendingConfirmationEmail('');
       setSyncStatus('登录成功，正在检查云端数据。');
     } catch (error) {
-      setSyncStatus(error.message === 'Invalid login credentials'
-        ? '邮箱或密码不正确，请重新输入。'
-        : `登录失败：${error.message}`);
+      if (error.message === 'Email not confirmed') {
+        setPendingConfirmationEmail(email);
+        setSyncStatus('邮箱尚未验证，请先打开验证邮件，或重新发送验证邮件。');
+      } else {
+        setSyncStatus(error.message === 'Invalid login credentials'
+          ? '邮箱或密码不正确，请重新输入。'
+          : `登录失败：${error.message}`);
+      }
     } finally {
       setSyncBusy(false);
     }
@@ -233,13 +240,47 @@ export function ProfilePage() {
       setLoginPasswordConfirm('');
       if (data.session) {
         setSession(data.session);
+        setPendingConfirmationEmail('');
         setSyncStatus('账号已创建，正在检查云端数据。');
       } else {
         setAuthMode('signIn');
+        setPendingConfirmationEmail(email);
         setSyncStatus('账号已创建，请先到邮箱完成验证，再用邮箱和密码登录。');
       }
     } catch (error) {
       setSyncStatus(`注册失败：${error.message}`);
+    } finally {
+      setSyncBusy(false);
+    }
+  }
+
+  async function resendConfirmationEmail() {
+    if (!supabase) {
+      setSyncStatus('Supabase 还没有配置好。');
+      return;
+    }
+
+    const email = (pendingConfirmationEmail || loginEmail).trim();
+    if (!email) {
+      setSyncStatus('请先输入注册邮箱。');
+      return;
+    }
+
+    setSyncBusy(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: { emailRedirectTo: window.location.origin },
+      });
+      if (error) throw error;
+      setLoginEmail(email);
+      setPendingConfirmationEmail(email);
+      setSyncStatus('验证邮件已重新发送，请检查收件箱和垃圾邮件。');
+    } catch (error) {
+      setSyncStatus(error.message === 'Email address not authorized'
+        ? '当前默认邮件服务不能向这个邮箱投递。请先配置自定义 SMTP。'
+        : `重新发送失败：${error.message}`);
     } finally {
       setSyncBusy(false);
     }
@@ -395,6 +436,11 @@ export function ProfilePage() {
             <button disabled={syncBusy} type="submit">
               {syncBusy ? '处理中' : authMode === 'signUp' ? '创建账号' : '登录并同步'}
             </button>
+            {pendingConfirmationEmail && (
+              <button className="sync-resend-confirmation" disabled={syncBusy} onClick={resendConfirmationEmail} type="button">
+                没收到验证邮件？重新发送
+              </button>
+            )}
             <button
               className="sync-auth-mode-toggle"
               onClick={() => {

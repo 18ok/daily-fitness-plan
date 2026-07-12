@@ -290,6 +290,14 @@
   font-size: 12px;
 }
 
+.sync-login-password .sync-resend-confirmation {
+  height: 34px;
+  color: #5e5356;
+  background: #fff;
+  border: 1px solid #d8efe2;
+  font-size: 12px;
+}
+
 .sync-actions {
   width: 100%;
   display: grid;
