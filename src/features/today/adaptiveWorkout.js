@@ -174,7 +174,8 @@ function resolveMovement(template, context) {
   const { goals, limits, loads, bodyweight, mode, exerciseHistory } = context;
   let resolved = template;
 
-  if (limits.includes(template.movement) && template.avoidedFallback) {
+  if (limits.includes(template.movement)) {
+    if (!template.avoidedFallback) return null;
     resolved = { ...template, ...template.avoidedFallback, requiresDumbbell: false };
   } else if (template.requiresDumbbell && loads.length === 0 && template.fallback) {
     resolved = { ...template, ...template.fallback, requiresDumbbell: false };

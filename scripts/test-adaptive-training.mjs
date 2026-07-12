@@ -24,26 +24,19 @@ function run(name, fn) {
   }
 }
 
-function profileWithBodyweight(value) {
-  const profile = normalizeTrainingProfile(value);
-  return {
-    ...profile,
-    equipment: { ...profile.equipment, bodyweight: true },
-  };
-}
-
 run('training profile keeps only known values and safe dumbbell loads', () => {
   const profile = normalizeTrainingProfile({
     goals: ['habit', 'unknown', 'shape', 'habit'],
     experienceLevel: 'consistent',
-    movementLimits: ['jump', 'unknown', 'jump'],
-    equipment: { dumbbellKg: [3, '2', 3, 11, -1, 101] },
+    movementLimits: ['jump', 'core', 'unknown', 'jump'],
+    equipment: { bodyweight: true, dumbbellKg: [3, '2', 3, 11, -1, 101] },
     note: 'a'.repeat(121),
   });
 
   assert.deepEqual(profile.goals, ['habit', 'shape']);
   assert.equal(profile.experienceLevel, 'consistent');
-  assert.deepEqual(profile.movementLimits, ['jump']);
+  assert.deepEqual(profile.movementLimits, ['jump', 'core']);
+  assert.equal(profile.equipment.bodyweight, true);
   assert.equal(profile.note, 'a'.repeat(120));
   assert.deepEqual(availableDumbbellLoads(profile), [2, 3]);
 });
@@ -181,10 +174,10 @@ run('adaptive workout replaces an avoided movement and starts from the smallest 
   const workout = buildAdaptiveWorkout({
     basePlan: buildPlan('30分钟', '白班', '家里'),
     state: { time: '30分钟', status: '白班', condition: '家里' },
-    trainingProfile: profileWithBodyweight({
+    trainingProfile: normalizeTrainingProfile({
       goals: ['shape'],
       experienceLevel: 'new',
-      equipment: { dumbbellKg: [2, 3] },
+      equipment: { bodyweight: true, dumbbellKg: [2, 3] },
       movementLimits: ['squat'],
     }),
     exerciseHistory: [],
@@ -213,10 +206,10 @@ run('adaptive workout respects an explicit profile safety flag', () => {
   const workout = buildAdaptiveWorkout({
     basePlan: buildPlan('30分钟', '白班', '家里'),
     state: { time: '30分钟', status: '白班', condition: '家里' },
-    trainingProfile: {
+    trainingProfile: normalizeTrainingProfile({
       equipment: { bodyweight: true, dumbbellKg: [2] },
       safetyFlag: 'suggest_rest',
-    },
+    }),
     exerciseHistory: [],
     cycleAdjustment: { level: 'normal' },
   });
@@ -257,8 +250,9 @@ run('adaptive workout de-duplicates replacement movement ids', () => {
   const workout = buildAdaptiveWorkout({
     basePlan: buildPlan('30分钟', '白班', '家里'),
     state: { time: '30分钟', status: '白班', condition: '家里' },
-    trainingProfile: profileWithBodyweight({
+    trainingProfile: normalizeTrainingProfile({
       goals: ['shape'],
+      equipment: { bodyweight: true },
       movementLimits: ['squat'],
     }),
     exerciseHistory: [],
@@ -267,6 +261,38 @@ run('adaptive workout de-duplicates replacement movement ids', () => {
 
   const ids = workout.movements.map((item) => item.id);
   assert.equal(new Set(ids).size, ids.length);
+});
+
+run('normalized bodyweight equipment reaches the adaptive composer', () => {
+  const trainingProfile = normalizeTrainingProfile({
+    equipment: { bodyweight: true, dumbbellKg: [2] },
+  });
+  const workout = buildAdaptiveWorkout({
+    basePlan: buildPlan('30分钟', '白班', '家里'),
+    state: { time: '30分钟', status: '白班', condition: '家里' },
+    trainingProfile,
+    exerciseHistory: [],
+    cycleAdjustment: { level: 'normal' },
+  });
+
+  assert.equal(trainingProfile.equipment.bodyweight, true);
+  assert.equal(workout.movements.some((item) => item.equipmentLabel === '自重'), true);
+});
+
+run('adaptive workout omits a limited core movement without a replacement', () => {
+  const workout = buildAdaptiveWorkout({
+    basePlan: buildPlan('45分钟', '白班', '家里'),
+    state: { time: '45分钟', status: '白班', condition: '家里' },
+    trainingProfile: normalizeTrainingProfile({
+      equipment: { bodyweight: true, dumbbellKg: [2] },
+      movementLimits: ['core'],
+    }),
+    exerciseHistory: [],
+    cycleAdjustment: { level: 'normal' },
+  });
+
+  assert.equal(workout.movements.length > 0, true);
+  assert.equal(workout.movements.some((item) => item.id === 'dead_bug'), false);
 });
 
 run('fat loss food guide omits calories', () => {
@@ -286,11 +312,15 @@ run('light and recovery workouts use at most two sets per movement', () => {
     const workout = buildAdaptiveWorkout({
       basePlan: buildPlan('30分钟', '白班', '家里'),
       state: { time: '30分钟', status: '白班', condition: '家里' },
-      trainingProfile: normalizeTrainingProfile({ goals: ['shape'] }),
+      trainingProfile: normalizeTrainingProfile({
+        goals: ['shape'],
+        equipment: { bodyweight: true },
+      }),
       exerciseHistory: [],
       cycleAdjustment: { level },
     });
 
+    assert.equal(workout.movements.length > 0, true);
     assert.equal(workout.movements.every((item) => item.sets <= 2), true);
   });
 });

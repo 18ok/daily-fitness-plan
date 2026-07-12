@@ -16,19 +16,6 @@ import { buildAdaptiveWorkout } from './features/today/adaptiveWorkout';
 import { buildPlan } from './features/today/planBuilder';
 import { TodayPage } from './features/today/TodayPage';
 
-function normalizeAdaptiveTrainingProfile(value) {
-  const profile = normalizeTrainingProfile(value);
-  const equipment = value && typeof value === 'object' && value.equipment && typeof value.equipment === 'object'
-    ? value.equipment
-    : {};
-
-  return {
-    ...profile,
-    equipment: { ...profile.equipment, bodyweight: equipment.bodyweight === true },
-    safetyFlag: value?.safetyFlag,
-  };
-}
-
 function App() {
   const [activeTab, setActiveTab] = useState('today');
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -42,10 +29,7 @@ function App() {
   const [exerciseHistory, setExerciseHistory] = useLocalStorageState('exercise-session-history', []);
   const [cycleLogs, setCycleLogs] = useLocalStorageState('cycle-logs', []);
   const state = storedState && typeof storedState === 'object' ? storedState : {};
-  const normalizedTrainingProfile = useMemo(
-    () => normalizeAdaptiveTrainingProfile(trainingProfile),
-    [trainingProfile],
-  );
+  const normalizedTrainingProfile = useMemo(() => normalizeTrainingProfile(trainingProfile), [trainingProfile]);
   const normalizedExerciseHistory = useMemo(() => normalizeExerciseHistory(exerciseHistory), [exerciseHistory]);
   const normalizedCycleLogs = useMemo(() => normalizeCycleLogs(cycleLogs), [cycleLogs]);
   const todayCycleLog = useMemo(

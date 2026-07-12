@@ -1,7 +1,8 @@
 export const TRAINING_GOALS = ['habit', 'shape', 'fat_loss_food'];
 export const EXPERIENCE_LEVELS = ['new', 'occasional', 'consistent'];
-export const AVOID_MOVEMENTS = ['squat', 'hinge', 'overhead_press', 'jump', 'stand_after_sitting'];
+export const AVOID_MOVEMENTS = ['squat', 'hinge', 'overhead_press', 'horizontal_push', 'core', 'jump', 'stand_after_sitting'];
 export const DUMBBELL_PRESETS = [0.5, 1, 1.5, 2, 3, 4, 5, 7.5, 10];
+const SAFETY_FLAGS = ['none', 'suggest_rest'];
 
 const CAKE_EXPLANATION = '这是你和自己的趋势对比，不是体脂测试，也不会决定你今天该练多重。';
 
@@ -29,6 +30,11 @@ function normalizedPresetLoads(value) {
     .sort((left, right) => left - right);
 }
 
+function normalizedSafetyFlag(value) {
+  if (value === true) return true;
+  return SAFETY_FLAGS.includes(value) ? value : 'none';
+}
+
 export function normalizeTrainingProfile(value) {
   const profile = value && typeof value === 'object' ? value : {};
   const equipment = profile.equipment && typeof profile.equipment === 'object' ? profile.equipment : {};
@@ -37,7 +43,11 @@ export function normalizeTrainingProfile(value) {
     goals: knownValues(profile.goals, TRAINING_GOALS),
     experienceLevel: EXPERIENCE_LEVELS.includes(profile.experienceLevel) ? profile.experienceLevel : 'new',
     movementLimits: knownValues(profile.movementLimits, AVOID_MOVEMENTS),
-    equipment: { dumbbellKg: normalizedPresetLoads(equipment.dumbbellKg) },
+    equipment: {
+      bodyweight: equipment.bodyweight === true,
+      dumbbellKg: normalizedPresetLoads(equipment.dumbbellKg),
+    },
+    safetyFlag: normalizedSafetyFlag(profile.safetyFlag),
     note: cleanText(profile.note),
   };
 }
