@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "test:cycle": "node scripts/test-cycle-tracking.mjs",
+    "test:adaptive": "node scripts/test-adaptive-training.mjs",
     "test:app-logic": "node scripts/test-app-logic.mjs",
     "test:smoke": "node scripts/test-app-smoke.mjs",
     "check:maintenance-diff": "node scripts/check-maintenance-diff.mjs",
