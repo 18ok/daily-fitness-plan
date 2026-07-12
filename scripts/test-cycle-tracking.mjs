@@ -7,6 +7,7 @@ import {
   calculateCycleSummary,
 } from '../src/lib/cycleTracking.js';
 import { getCycleTrainingAdjustment } from '../src/lib/cycleTrainingAdjustment.js';
+import { mapCycleLogPayload, mapCycleLogRow } from '../src/lib/cycleTrackingRepository.js';
 
 function bleeding(date, level = 'medium') {
   return { date, bleedingLevel: level, symptoms: [], note: '' };
@@ -214,6 +215,67 @@ run('training adjustment follows conservative priority rules', () => {
   assert.equal(getCycleTrainingAdjustment({ symptoms: ['fatigue'] }).level, 'light');
   assert.equal(getCycleTrainingAdjustment({ energyLevel: 8, sleepQuality: 'good' }).level, 'normal');
   assert.equal(getCycleTrainingAdjustment({ painLevel: 8, energyLevel: 1 }).requiresCareNotice, true);
+});
+
+run('cycle repository maps extended and legacy logs safely', () => {
+  const mapped = mapCycleLogRow({
+    log_date: '2026-06-01',
+    bleeding_level: 'medium',
+    symptoms: ['fatigue'],
+    note: 'need a lighter day',
+    period_status: 'started',
+    pain_level: 5,
+    energy_level: 4,
+    sleep_quality: 'poor',
+    red_flags: ['dizziness'],
+    created_at: '2026-06-01T08:00:00.000Z',
+    updated_at: '2026-06-01T09:00:00.000Z',
+  });
+  assert.deepEqual(mapped, {
+    date: '2026-06-01',
+    bleedingLevel: 'medium',
+    symptoms: ['fatigue'],
+    note: 'need a lighter day',
+    periodStatus: 'started',
+    painLevel: 5,
+    energyLevel: 4,
+    sleepQuality: 'poor',
+    redFlags: ['dizziness'],
+    updatedAt: '2026-06-01T09:00:00.000Z',
+  });
+
+  assert.deepEqual(mapCycleLogRow({
+    log_date: '2026-06-02',
+    bleeding_level: null,
+    symptoms: null,
+    note: null,
+    created_at: '2026-06-02T08:00:00.000Z',
+  }), {
+    date: '2026-06-02',
+    bleedingLevel: null,
+    symptoms: [],
+    note: '',
+    periodStatus: null,
+    painLevel: null,
+    energyLevel: null,
+    sleepQuality: null,
+    redFlags: [],
+    updatedAt: '2026-06-02T08:00:00.000Z',
+  });
+
+  assert.deepEqual(mapCycleLogPayload('user-123', mapped), {
+    user_id: 'user-123',
+    log_date: '2026-06-01',
+    bleeding_level: 'medium',
+    symptoms: ['fatigue'],
+    note: 'need a lighter day',
+    period_status: 'started',
+    pain_level: 5,
+    energy_level: 4,
+    sleep_quality: 'poor',
+    red_flags: ['dizziness'],
+    updated_at: '2026-06-01T09:00:00.000Z',
+  });
 });
 
 console.log('\nAll cycle tracking tests passed.');

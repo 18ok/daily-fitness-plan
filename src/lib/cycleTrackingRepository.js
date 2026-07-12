@@ -20,27 +20,54 @@ async function requireUserId() {
   return { client, userId: user.id };
 }
 
-function mapRowToLog(row) {
+export function mapCycleLogRow(row) {
   if (!row) return null;
-  return {
+  const [normalized] = normalizeCycleLogs([{
     date: row.log_date,
     bleedingLevel: row.bleeding_level ?? null,
     symptoms: Array.isArray(row.symptoms) ? row.symptoms : [],
     note: typeof row.note === 'string' ? row.note : '',
+    periodStatus: row.period_status ?? null,
+    painLevel: row.pain_level ?? null,
+    energyLevel: row.energy_level ?? null,
+    sleepQuality: row.sleep_quality ?? null,
+    redFlags: Array.isArray(row.red_flags) ? row.red_flags : [],
     updatedAt: row.updated_at || row.created_at || new Date().toISOString(),
+  }]);
+  return normalized || null;
+}
+
+export function mapCycleLogPayload(userId, log) {
+  const [normalized] = normalizeCycleLogs([log]);
+  if (!normalized) return null;
+  return {
+    user_id: userId,
+    log_date: normalized.date,
+    bleeding_level: normalized.bleedingLevel,
+    symptoms: normalized.symptoms,
+    note: normalized.note,
+    period_status: normalized.periodStatus,
+    pain_level: normalized.painLevel,
+    energy_level: normalized.energyLevel,
+    sleep_quality: normalized.sleepQuality,
+    red_flags: normalized.redFlags,
+    updated_at: normalized.updatedAt,
   };
 }
 
-function mapLogToRow(userId, log) {
-  return {
-    user_id: userId,
-    log_date: log.date,
-    bleeding_level: log.bleedingLevel ?? null,
-    symptoms: Array.isArray(log.symptoms) ? log.symptoms : [],
-    note: typeof log.note === 'string' ? log.note : '',
-    updated_at: log.updatedAt || new Date().toISOString(),
-  };
-}
+const CYCLE_LOG_FIELDS = [
+  'log_date',
+  'bleeding_level',
+  'symptoms',
+  'note',
+  'period_status',
+  'pain_level',
+  'energy_level',
+  'sleep_quality',
+  'red_flags',
+  'created_at',
+  'updated_at',
+].join(', ');
 
 /**
  * Fetch all cycle logs for the signed-in user.
@@ -51,14 +78,14 @@ export async function fetchCycleLogs() {
 
   const { data, error } = await client
     .from('cycle_logs')
-    .select('log_date, bleeding_level, symptoms, note, created_at, updated_at')
+    .select(CYCLE_LOG_FIELDS)
     .eq('user_id', userId)
     .order('log_date', { ascending: true });
 
   if (error) throw error;
   if (!data || data.length === 0) return [];
 
-  return normalizeCycleLogs(data.map(mapRowToLog));
+  return normalizeCycleLogs(data.map(mapCycleLogRow));
 }
 
 /**
@@ -70,15 +97,16 @@ export async function upsertCycleLogRemote(log) {
   const [normalized] = normalizeCycleLogs([log]);
   if (!normalized) throw new Error('Invalid cycle log');
 
-  const payload = mapLogToRow(userId, normalized);
+  const payload = mapCycleLogPayload(userId, normalized);
+  if (!payload) throw new Error('Invalid cycle log');
   const { data, error } = await client
     .from('cycle_logs')
     .upsert(payload, { onConflict: 'user_id,log_date' })
-    .select('log_date, bleeding_level, symptoms, note, created_at, updated_at')
+    .select(CYCLE_LOG_FIELDS)
     .single();
 
   if (error) throw error;
-  return mapRowToLog(data);
+  return mapCycleLogRow(data);
 }
 
 /**
