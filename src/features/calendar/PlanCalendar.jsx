@@ -21,6 +21,7 @@ import {
   removeCycleLog,
   upsertCycleLog,
 } from '../../lib/cycleTracking';
+import { getCycleTrainingAdjustment } from '../../lib/cycleTrainingAdjustment';
 import {
   deleteCycleLogRemote,
   fetchCycleLogs,
@@ -37,6 +38,21 @@ const bleedingOptions = [
   { value: 'heavy', label: '较多' },
 ];
 const symptomOptions = ['腹部不适', '腰酸', '头痛', '疲惫', '情绪波动', '睡眠不佳'];
+const periodStatusOptions = [
+  { value: 'started', label: '今天开始' },
+  { value: 'ongoing', label: '进行中' },
+  { value: 'ended', label: '结束今天的经期' },
+  { value: 'not_started', label: '今天没有开始' },
+];
+const sleepOptions = [
+  { value: 'poor', label: '较差' },
+  { value: 'normal', label: '一般' },
+  { value: 'good', label: '不错' },
+];
+const redFlagOptions = [
+  { value: 'dizziness', label: '头晕' },
+  { value: 'abnormal_bleeding', label: '异常出血' },
+];
 
 function dateFromKey(key) {
   const [year, month, day] = key.split('-').map(Number);
@@ -73,10 +89,23 @@ function isWithinRange(key, range) {
 function blankForm(date) {
   return {
     date,
+    periodStatus: null,
     bleedingLevel: '',
     symptoms: [],
+    painLevel: null,
+    energyLevel: null,
+    sleepQuality: '',
+    redFlags: [],
     note: '',
   };
+}
+
+function isPeriodRecord(log) {
+  return Boolean(log?.periodStatus || log?.bleedingLevel);
+}
+
+function cycleStatusLabel(value) {
+  return periodStatusOptions.find((option) => option.value === value)?.label || '';
 }
 
 export function PlanCalendar() {
@@ -114,6 +143,10 @@ export function PlanCalendar() {
   const selectedPlan = plansByDate.get(selectedDate);
   const selectedCare = careByDate.get(selectedDate);
   const selectedCycle = cycleByDate.get(selectedDate);
+  const selectedTrainingAdjustment = useMemo(
+    () => (selectedCycle ? getCycleTrainingAdjustment(selectedCycle) : null),
+    [selectedCycle],
+  );
   const selectedCount = [selectedPlan, selectedCare, selectedCycle].filter(Boolean).length;
   const isFutureDate = selectedDate > todayKey;
 
@@ -167,18 +200,34 @@ export function PlanCalendar() {
     setEditorOpen(false);
   }
 
-  function openEditor() {
-    if (isFutureDate) return;
-    setForm(selectedCycle
+  function openEditorForDate(dateKey) {
+    if (dateKey > todayKey) return;
+    const cycle = cycleByDate.get(dateKey);
+    setSelectedDate(dateKey);
+    setForm(cycle
       ? {
-          date: selectedCycle.date,
-          bleedingLevel: selectedCycle.bleedingLevel || '',
-          symptoms: [...selectedCycle.symptoms],
-          note: selectedCycle.note,
+          date: cycle.date,
+          periodStatus: cycle.periodStatus || null,
+          bleedingLevel: cycle.bleedingLevel || '',
+          symptoms: [...cycle.symptoms],
+          painLevel: cycle.painLevel,
+          energyLevel: cycle.energyLevel,
+          sleepQuality: cycle.sleepQuality || '',
+          redFlags: [...cycle.redFlags],
+          note: cycle.note,
         }
-      : blankForm(selectedDate));
+      : blankForm(dateKey));
     setSyncMessage('');
     setEditorOpen(true);
+  }
+
+  function openEditor() {
+    openEditorForDate(selectedDate);
+  }
+
+  function openTodayEditor() {
+    setVisibleMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+    openEditorForDate(todayKey);
   }
 
   function toggleSymptom(symptom) {
@@ -190,6 +239,15 @@ export function PlanCalendar() {
     }));
   }
 
+  function toggleRedFlag(redFlag) {
+    setForm((current) => ({
+      ...current,
+      redFlags: current.redFlags.includes(redFlag)
+        ? current.redFlags.filter((item) => item !== redFlag)
+        : [...current.redFlags, redFlag],
+    }));
+  }
+
   function updateCloudSyncConsent(enabled) {
     setCycleSettings({ cloudSyncConsent: enabled === true });
     setSyncMessage(enabled
@@ -198,14 +256,25 @@ export function PlanCalendar() {
   }
 
   async function saveCycleLog() {
-    if (!form.bleedingLevel && form.symptoms.length === 0 && !form.note.trim()) {
-      setSyncMessage('至少选择一项情况，或者写下一句身体感受');
+    if (
+      !form.periodStatus
+      && !form.bleedingLevel
+      && form.symptoms.length === 0
+      && form.painLevel === null
+      && form.energyLevel === null
+      && !form.sleepQuality
+      && form.redFlags.length === 0
+      && !form.note.trim()
+    ) {
+      setSyncMessage('至少记录一项身体情况，或者写下一句感受。');
       return;
     }
 
     const entry = {
       ...form,
+      periodStatus: form.periodStatus === 'not_started' ? null : form.periodStatus || null,
       bleedingLevel: form.bleedingLevel || null,
+      sleepQuality: form.sleepQuality || null,
       note: form.note.trim(),
       updatedAt: new Date().toISOString(),
     };
@@ -298,6 +367,11 @@ export function PlanCalendar() {
         )}
       </section>
 
+      <button className="cycle-today-record-button" onClick={openTodayEditor} type="button">
+        <Droplets size={18} />
+        记录今天
+      </button>
+
       <section className="calendar-board" aria-label="计划日历">
         <div className="calendar-month-bar">
           <button aria-label="上个月" onClick={() => moveMonth(-1)} title="上个月" type="button">
@@ -318,19 +392,22 @@ export function PlanCalendar() {
             const hasPlan = plansByDate.has(item.key);
             const hasCare = careByDate.has(item.key);
             const cycleLog = cycleByDate.get(item.key);
-            const isPredicted = !cycleLog && isWithinRange(item.key, cycleSummary.nextEstimate);
+            const hasPeriodRecord = isPeriodRecord(cycleLog);
+            const hasBodyRecord = Boolean(cycleLog && !hasPeriodRecord);
+            const isPredicted = !hasPeriodRecord && isWithinRange(item.key, cycleSummary.nextEstimate);
             const classNames = [
               'calendar-day',
               item.inCurrentMonth ? '' : 'is-outside',
               item.key === todayKey ? 'is-today' : '',
               item.key === selectedDate ? 'is-selected' : '',
-              cycleLog ? 'has-cycle-log' : '',
+              hasPeriodRecord ? 'has-period-record' : '',
+              hasBodyRecord ? 'has-body-record' : '',
               isPredicted ? 'is-cycle-predicted' : '',
             ].filter(Boolean).join(' ');
 
             return (
               <button
-                aria-label={`${item.key}${hasPlan ? '，已有计划' : ''}${hasCare ? '，已签到' : ''}${cycleLog ? '，有经期记录' : ''}${isPredicted ? '，经期参考范围' : ''}`}
+                aria-label={`${item.key}${hasPlan ? '，已有计划' : ''}${hasCare ? '，已签到' : ''}${hasPeriodRecord ? '，已记录经期' : ''}${hasBodyRecord ? '，有身体状态记录' : ''}${isPredicted ? '，经期参考范围' : ''}`}
                 className={classNames}
                 key={item.key}
                 onClick={() => {
@@ -343,7 +420,8 @@ export function PlanCalendar() {
                 <i className="calendar-marks">
                   {hasPlan && <b className="plan-mark" />}
                   {hasCare && <b className="care-mark" />}
-                  {cycleLog && <b className="cycle-mark" />}
+                  {hasPeriodRecord && <b className="cycle-mark" />}
+                  {hasBodyRecord && <b className="body-mark" />}
                 </i>
               </button>
             );
@@ -353,7 +431,8 @@ export function PlanCalendar() {
         <div className="calendar-legend">
           <span><i className="plan-mark" />计划</span>
           <span><i className="care-mark" />签到</span>
-          <span><i className="cycle-mark" />经期记录</span>
+          <span><i className="cycle-mark" />已记录经期</span>
+          <span><i className="body-mark" />身体状态</span>
           <span><i className="cycle-predicted-mark" />参考范围</span>
         </div>
       </section>
@@ -404,14 +483,39 @@ export function PlanCalendar() {
             <span className="calendar-detail-icon"><Droplets size={18} /></span>
             <div>
               <strong>身体记录</strong>
-              <p>{bleedingOptions.find((item) => item.value === selectedCycle.bleedingLevel)?.label || '无出血记录'}</p>
+              <p>{[
+                cycleStatusLabel(selectedCycle.periodStatus),
+                bleedingOptions.find((item) => item.value === selectedCycle.bleedingLevel)?.label,
+              ].filter(Boolean).join(' · ') || '身体状态记录'}</p>
               <small>
-                {[...selectedCycle.symptoms, selectedCycle.note].filter(Boolean).join(' · ') || '没有补充其他感受'}
+                {[
+                  selectedCycle.painLevel !== null ? `疼痛 ${selectedCycle.painLevel}/10` : '',
+                  selectedCycle.energyLevel !== null ? `精力 ${selectedCycle.energyLevel}/10` : '',
+                  sleepOptions.find((item) => item.value === selectedCycle.sleepQuality)?.label,
+                  ...selectedCycle.symptoms,
+                  selectedCycle.note,
+                ].filter(Boolean).join(' · ') || '没有补充其他感受'}
               </small>
             </div>
-            <button aria-label="修改身体记录" onClick={openEditor} title="修改" type="button">
+            <button aria-label="编辑已记录的身体状态" onClick={openEditor} title="修改" type="button">
               <Pencil size={16} />
             </button>
+          </article>
+        )}
+
+        {selectedTrainingAdjustment && (
+          <article className={`cycle-training-adjustment is-${selectedTrainingAdjustment.level}`}>
+            <span className="calendar-detail-icon"><Sparkles size={18} /></span>
+            <div>
+              <strong>{selectedTrainingAdjustment.title}</strong>
+              {selectedTrainingAdjustment.reasons.length > 0 && (
+                <p>{selectedTrainingAdjustment.reasons.join(' · ')}</p>
+              )}
+              <small>{selectedTrainingAdjustment.suggestion}</small>
+              {selectedTrainingAdjustment.requiresCareNotice && (
+                <em>这不是医疗诊断。</em>
+              )}
+            </div>
           </article>
         )}
 
@@ -446,7 +550,25 @@ export function PlanCalendar() {
             </div>
 
             <fieldset>
-              <legend>今天的经量</legend>
+              <legend>经期今天的状态</legend>
+              <div className="cycle-status-grid">
+                {periodStatusOptions.map((option) => (
+                  <button
+                    aria-pressed={form.periodStatus === option.value}
+                    className={form.periodStatus === option.value ? 'is-active' : ''}
+                    key={option.value || 'not-started'}
+                    onClick={() => setForm((current) => ({ ...current, periodStatus: option.value }))}
+                    type="button"
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <small>经期是连续事件：开始、进行中和结束可以按天补记或修改。</small>
+            </fieldset>
+
+            <fieldset>
+              <legend>今天的出血量</legend>
               <div className="cycle-choice-grid">
                 {bleedingOptions.map((option) => (
                   <button
@@ -467,6 +589,69 @@ export function PlanCalendar() {
             </fieldset>
 
             <fieldset>
+              <legend>疼痛程度</legend>
+              <div className="cycle-score-grid">
+                {Array.from({ length: 11 }, (_, value) => (
+                  <button
+                    aria-label={`疼痛 ${value}`}
+                    aria-pressed={form.painLevel === value}
+                    className={form.painLevel === value ? 'is-active' : ''}
+                    key={value}
+                    onClick={() => setForm((current) => ({
+                      ...current,
+                      painLevel: current.painLevel === value ? null : value,
+                    }))}
+                    type="button"
+                  >
+                    {value}
+                  </button>
+                ))}
+              </div>
+              <small>0 是没有疼痛，10 是最强烈。疼痛较强时会建议今天先暂停训练。</small>
+            </fieldset>
+
+            <fieldset>
+              <legend>精力程度</legend>
+              <div className="cycle-score-grid">
+                {Array.from({ length: 11 }, (_, value) => (
+                  <button
+                    aria-label={`精力 ${value}`}
+                    aria-pressed={form.energyLevel === value}
+                    className={form.energyLevel === value ? 'is-active' : ''}
+                    key={value}
+                    onClick={() => setForm((current) => ({
+                      ...current,
+                      energyLevel: current.energyLevel === value ? null : value,
+                    }))}
+                    type="button"
+                  >
+                    {value}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>昨晚睡眠</legend>
+              <div className="cycle-sleep-grid">
+                {sleepOptions.map((option) => (
+                  <button
+                    aria-pressed={form.sleepQuality === option.value}
+                    className={form.sleepQuality === option.value ? 'is-active' : ''}
+                    key={option.value}
+                    onClick={() => setForm((current) => ({
+                      ...current,
+                      sleepQuality: current.sleepQuality === option.value ? '' : option.value,
+                    }))}
+                    type="button"
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            <fieldset>
               <legend>身体感受</legend>
               <div className="cycle-symptom-list">
                 {symptomOptions.map((symptom) => (
@@ -481,6 +666,24 @@ export function PlanCalendar() {
                   </button>
                 ))}
               </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>需要留意的信号</legend>
+              <div className="cycle-red-flag-list">
+                {redFlagOptions.map((option) => (
+                  <button
+                    aria-pressed={form.redFlags.includes(option.value)}
+                    className={form.redFlags.includes(option.value) ? 'is-active' : ''}
+                    key={option.value}
+                    onClick={() => toggleRedFlag(option.value)}
+                    type="button"
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <small>如果出现异常出血、明显头晕或令你担心的症状，请暂停训练并及时就医。</small>
             </fieldset>
 
             <label className="cycle-note">

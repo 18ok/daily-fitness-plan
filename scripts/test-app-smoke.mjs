@@ -243,11 +243,30 @@ try {
   await page.getByRole('button', { name: '计划日历', exact: true }).click();
   await expectVisible(page.locator('.calendar-page'), 'Calendar page');
   await expectVisible(page.getByText('经期和身体状态记录仅保存在这台设备。', { exact: true }), 'Local-only cycle privacy notice');
-  await page.getByRole('button', { name: '记录这天的身体情况', exact: true }).click();
+  await page.getByRole('button', { name: '记录今天', exact: true }).click();
   await expectVisible(page.getByRole('dialog', { name: '身体情况记录', exact: true }), 'Cycle editor');
-  await page.getByRole('button', { name: '关闭', exact: true }).click();
+  await page.getByRole('button', { name: '今天开始', exact: true }).click();
+  await page.getByRole('button', { name: '中等', exact: true }).click();
+  await page.getByRole('button', { name: '疼痛 7', exact: true }).click();
+  await page.getByRole('button', { name: '保存记录', exact: true }).click();
   await page.getByRole('dialog', { name: '身体情况记录', exact: true }).waitFor({ state: 'detached' });
-  console.log('ok - Calendar cycle editor open and dismiss');
+  await expectVisible(page.getByText('建议暂停训练', { exact: true }), 'Cycle rest adjustment');
+  await page.waitForFunction(() => {
+    const logs = JSON.parse(localStorage.getItem('cycle-logs') || '[]');
+    return logs.some((entry) => entry.periodStatus === 'started' && entry.painLevel === 7);
+  });
+  assert.equal(await page.locator('.calendar-day.is-selected.has-period-record').count(), 1, 'Recorded period day should be solid');
+  await page.getByRole('button', { name: '修改这天的身体记录', exact: true }).click();
+  await expectVisible(page.getByRole('dialog', { name: '身体情况记录', exact: true }), 'Cycle editor reopens for editing');
+  await page.getByRole('button', { name: '今天没有开始', exact: true }).click();
+  await page.getByRole('button', { name: '中等', exact: true }).click();
+  await page.getByRole('button', { name: '疼痛 7', exact: true }).click();
+  await page.getByRole('button', { name: '精力 5', exact: true }).click();
+  await page.getByRole('button', { name: '保存记录', exact: true }).click();
+  await expectVisible(page.getByText('今天建议轻量训练', { exact: true }), 'Cycle light adjustment');
+  assert.equal(await page.locator('.calendar-day.is-selected.has-period-record').count(), 0, 'Body-only status should not be styled as a period');
+  assert.equal(await page.locator('.calendar-day.is-selected.has-body-record').count(), 1, 'Body-only status should remain visible');
+  console.log('ok - Calendar records continuous events and distinguishes body-only guidance');
 
   const storageBeforeReload = await page.evaluate(() => ({
     plan: localStorage.getItem('daily-plan-history'),
