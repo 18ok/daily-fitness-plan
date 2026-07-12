@@ -21,6 +21,7 @@ const movementCatalog = [
       id: 'prone_y_t_w',
       name: '俯卧 Y-T-W',
       equipmentLabel: '自重',
+      requiresBodyweight: true,
       replacement: '没有哑铃时，改为自重俯卧 Y-T-W',
     },
   },
@@ -34,12 +35,14 @@ const movementCatalog = [
       id: 'bodyweight_squat',
       name: '自重坐站',
       equipmentLabel: '自重',
+      requiresBodyweight: true,
       replacement: '没有哑铃时，改为自重坐站',
     },
     avoidedFallback: {
       id: 'glute_bridge',
       name: '自重臀桥',
       equipmentLabel: '自重',
+      requiresBodyweight: true,
       replacement: '避开深蹲，改为自重臀桥',
     },
   },
@@ -53,12 +56,14 @@ const movementCatalog = [
       id: 'glute_bridge',
       name: '自重臀桥',
       equipmentLabel: '自重',
+      requiresBodyweight: true,
       replacement: '没有哑铃时，改为自重臀桥',
     },
     avoidedFallback: {
       id: 'dead_bug',
       name: '死虫式',
       equipmentLabel: '自重',
+      requiresBodyweight: true,
       replacement: '避开髋铰链，改为自重死虫式',
     },
   },
@@ -67,12 +72,14 @@ const movementCatalog = [
     name: '斜板俯卧撑',
     movement: 'horizontal_push',
     equipmentLabel: '自重',
+    requiresBodyweight: true,
   },
   {
     id: 'dead_bug',
     name: '死虫式',
     movement: 'core',
     equipmentLabel: '自重',
+    requiresBodyweight: true,
   },
 ];
 
@@ -82,6 +89,7 @@ const recoveryCatalog = [
     name: '轻松走动',
     movement: 'walk',
     equipmentLabel: '自重',
+    requiresBodyweight: true,
     targetReps: '5–10 分钟',
   },
   {
@@ -89,6 +97,7 @@ const recoveryCatalog = [
     name: '舒缓活动度练习',
     movement: 'mobility',
     equipmentLabel: '自重',
+    requiresBodyweight: true,
     targetReps: '每个方向 5–8 次',
   },
 ];
@@ -109,6 +118,10 @@ function movementLimits(profile) {
 function hasSafetyFlag(profile) {
   const flag = profile?.safetyFlag;
   return flag === true || (typeof flag === 'string' && flag !== '' && flag !== 'none' && flag !== 'normal');
+}
+
+function hasBodyweightCapability(profile) {
+  return profile?.equipment?.bodyweight === true;
 }
 
 function workoutMode(cycleAdjustment, trainingProfile) {
@@ -158,13 +171,17 @@ function loadSuggestion({ exerciseId, requiresDumbbell, loads, exerciseHistory, 
 }
 
 function resolveMovement(template, context) {
-  const { goals, limits, loads, mode, exerciseHistory } = context;
+  const { goals, limits, loads, bodyweight, mode, exerciseHistory } = context;
   let resolved = template;
 
   if (limits.includes(template.movement) && template.avoidedFallback) {
     resolved = { ...template, ...template.avoidedFallback, requiresDumbbell: false };
   } else if (template.requiresDumbbell && loads.length === 0 && template.fallback) {
     resolved = { ...template, ...template.fallback, requiresDumbbell: false };
+  }
+
+  if ((resolved.requiresDumbbell && loads.length === 0) || (resolved.requiresBodyweight && !bodyweight)) {
+    return null;
   }
 
   return {
@@ -184,6 +201,15 @@ function resolveMovement(template, context) {
     why: goals.includes('shape') ? '用容易掌握的全身动作，慢慢建立塑形基础。' : '用容易掌握的动作，先把训练习惯做稳。',
     stopHint: '动作疼痛、头晕或明显不舒服时就停止，今天改为轻松走动或休息。',
   };
+}
+
+function uniqueMovements(movements) {
+  const seenIds = new Set();
+  return movements.filter((movement) => {
+    if (!movement || seenIds.has(movement.id)) return false;
+    seenIds.add(movement.id);
+    return true;
+  });
 }
 
 function mealGuide(basePlan, goals, state) {
@@ -229,6 +255,7 @@ export function buildAdaptiveWorkout({
     goals,
     limits: movementLimits(trainingProfile),
     loads,
+    bodyweight: hasBodyweightCapability(trainingProfile),
     mode,
     exerciseHistory,
   };
@@ -245,7 +272,16 @@ export function buildAdaptiveWorkout({
   const templates = mode === 'recovery'
     ? recoveryCatalog
     : movementCatalog.slice(0, movementCount(state?.time));
-  const movements = templates.map((template) => resolveMovement(template, context));
+  const movements = uniqueMovements(templates.map((template) => resolveMovement(template, context)));
+
+  if (movements.length === 0) {
+    return {
+      mode: 'suggest_rest',
+      movements: [],
+      mealGuide: mealGuide(basePlan, goals, state),
+      safetyNotice: '还没有确认可用器械或徒手训练，今天先不安排训练。',
+    };
+  }
 
   return {
     mode,

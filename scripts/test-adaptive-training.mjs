@@ -24,6 +24,14 @@ function run(name, fn) {
   }
 }
 
+function profileWithBodyweight(value) {
+  const profile = normalizeTrainingProfile(value);
+  return {
+    ...profile,
+    equipment: { ...profile.equipment, bodyweight: true },
+  };
+}
+
 run('training profile keeps only known values and safe dumbbell loads', () => {
   const profile = normalizeTrainingProfile({
     goals: ['habit', 'unknown', 'shape', 'habit'],
@@ -173,7 +181,7 @@ run('adaptive workout replaces an avoided movement and starts from the smallest 
   const workout = buildAdaptiveWorkout({
     basePlan: buildPlan('30分钟', '白班', '家里'),
     state: { time: '30分钟', status: '白班', condition: '家里' },
-    trainingProfile: normalizeTrainingProfile({
+    trainingProfile: profileWithBodyweight({
       goals: ['shape'],
       experienceLevel: 'new',
       equipment: { dumbbellKg: [2, 3] },
@@ -199,6 +207,66 @@ run('adaptive workout suggests rest for a safety flag', () => {
 
   assert.equal(workout.mode, 'suggest_rest');
   assert.equal(workout.movements.length, 0);
+});
+
+run('adaptive workout respects an explicit profile safety flag', () => {
+  const workout = buildAdaptiveWorkout({
+    basePlan: buildPlan('30分钟', '白班', '家里'),
+    state: { time: '30分钟', status: '白班', condition: '家里' },
+    trainingProfile: {
+      equipment: { bodyweight: true, dumbbellKg: [2] },
+      safetyFlag: 'suggest_rest',
+    },
+    exerciseHistory: [],
+    cycleAdjustment: { level: 'normal' },
+  });
+
+  assert.equal(workout.mode, 'suggest_rest');
+  assert.equal(workout.movements.length, 0);
+});
+
+run('adaptive workout requires an entered training capability before suggesting movements', () => {
+  const workout = buildAdaptiveWorkout({
+    basePlan: buildPlan('30分钟', '白班', '家里'),
+    state: { time: '30分钟', status: '白班', condition: '家里' },
+    trainingProfile: normalizeTrainingProfile({ goals: ['shape'] }),
+    exerciseHistory: [],
+    cycleAdjustment: { level: 'normal' },
+  });
+
+  assert.equal(workout.mode, 'suggest_rest');
+  assert.equal(workout.movements.length, 0);
+});
+
+run('adaptive workout does not add bodyweight movements when only dumbbells are entered', () => {
+  const workout = buildAdaptiveWorkout({
+    basePlan: buildPlan('30分钟', '白班', '家里'),
+    state: { time: '30分钟', status: '白班', condition: '家里' },
+    trainingProfile: normalizeTrainingProfile({
+      goals: ['shape'],
+      equipment: { dumbbellKg: [2] },
+    }),
+    exerciseHistory: [],
+    cycleAdjustment: { level: 'normal' },
+  });
+
+  assert.equal(workout.movements.some((item) => item.equipmentLabel === '自重'), false);
+});
+
+run('adaptive workout de-duplicates replacement movement ids', () => {
+  const workout = buildAdaptiveWorkout({
+    basePlan: buildPlan('30分钟', '白班', '家里'),
+    state: { time: '30分钟', status: '白班', condition: '家里' },
+    trainingProfile: profileWithBodyweight({
+      goals: ['shape'],
+      movementLimits: ['squat'],
+    }),
+    exerciseHistory: [],
+    cycleAdjustment: { level: 'normal' },
+  });
+
+  const ids = workout.movements.map((item) => item.id);
+  assert.equal(new Set(ids).size, ids.length);
 });
 
 run('fat loss food guide omits calories', () => {
