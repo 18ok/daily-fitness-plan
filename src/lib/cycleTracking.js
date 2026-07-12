@@ -1,4 +1,7 @@
 const BLEEDING_LEVELS = new Set(['spotting', 'light', 'medium', 'heavy']);
+const PERIOD_STATUSES = new Set(['started', 'ongoing', 'ended']);
+const SLEEP_QUALITIES = new Set(['poor', 'normal', 'good']);
+const RED_FLAG_TYPES = new Set(['dizziness', 'abnormal_bleeding']);
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function pad(value) {
@@ -61,6 +64,26 @@ function normalizeNote(value) {
   return value.trim();
 }
 
+function normalizePeriodStatus(value) {
+  if (typeof value !== 'string') return null;
+  return PERIOD_STATUSES.has(value) ? value : null;
+}
+
+function normalizeScore(value) {
+  if (!Number.isInteger(value) || value < 0 || value > 10) return null;
+  return value;
+}
+
+function normalizeSleepQuality(value) {
+  if (typeof value !== 'string') return null;
+  return SLEEP_QUALITIES.has(value) ? value : null;
+}
+
+function normalizeRedFlags(value) {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item) => typeof item === 'string' && RED_FLAG_TYPES.has(item));
+}
+
 function hasBleeding(log) {
   const level = normalizeBleedingLevel(log?.bleedingLevel);
   return level === 'light' || level === 'medium' || level === 'heavy';
@@ -83,6 +106,11 @@ function normalizeOneLog(entry) {
     bleedingLevel: normalizeBleedingLevel(entry.bleedingLevel),
     symptoms: normalizeSymptoms(entry.symptoms),
     note: normalizeNote(entry.note),
+    periodStatus: normalizePeriodStatus(entry.periodStatus),
+    painLevel: normalizeScore(entry.painLevel),
+    energyLevel: normalizeScore(entry.energyLevel),
+    sleepQuality: normalizeSleepQuality(entry.sleepQuality),
+    redFlags: normalizeRedFlags(entry.redFlags),
     updatedAt: typeof entry.updatedAt === 'string' && entry.updatedAt ? entry.updatedAt : new Date().toISOString(),
   };
 }
@@ -90,7 +118,7 @@ function normalizeOneLog(entry) {
 /**
  * Normalize and sort cycle logs. Invalid entries are dropped.
  * @param {unknown} logs
- * @returns {Array<{date: string, bleedingLevel: string|null, symptoms: string[], note: string, updatedAt: string}>}
+ * @returns {Array<{date: string, bleedingLevel: string|null, symptoms: string[], note: string, periodStatus: string|null, painLevel: number|null, energyLevel: number|null, sleepQuality: string|null, redFlags: string[], updatedAt: string}>}
  */
 export function normalizeCycleLogs(logs) {
   if (!Array.isArray(logs)) return [];
@@ -140,29 +168,38 @@ export function removeCycleLog(logs, dateKey) {
  * @returns {string[]} YYYY-MM-DD period start dates, ascending
  */
 export function derivePeriodStarts(logs) {
-  const bleedingDates = normalizeCycleLogs(logs)
+  const normalizedLogs = normalizeCycleLogs(logs);
+  const starts = new Set(normalizedLogs
+    .filter((item) => item.periodStatus === 'started')
+    .map((item) => item.date));
+  const bleedingLogs = normalizedLogs
     .filter(hasBleeding)
-    .map((item) => item.date)
-    .sort((a, b) => a.localeCompare(b));
+    .sort((a, b) => a.date.localeCompare(b.date));
 
-  if (bleedingDates.length === 0) return [];
+  if (bleedingLogs.length === 0) return [...starts].sort((a, b) => a.localeCompare(b));
 
-  const starts = [];
-  let currentStart = bleedingDates[0];
-  let previous = bleedingDates[0];
+  const groups = [];
+  let currentGroup = [bleedingLogs[0]];
+  let previous = bleedingLogs[0];
 
-  for (let index = 1; index < bleedingDates.length; index += 1) {
-    const date = bleedingDates[index];
-    const gap = daysBetween(previous, date);
+  for (let index = 1; index < bleedingLogs.length; index += 1) {
+    const log = bleedingLogs[index];
+    const gap = daysBetween(previous.date, log.date);
     if (gap === null || gap > 1) {
-      starts.push(currentStart);
-      currentStart = date;
+      groups.push(currentGroup);
+      currentGroup = [log];
+    } else {
+      currentGroup.push(log);
     }
-    previous = date;
+    previous = log;
+  }
+  groups.push(currentGroup);
+
+  for (const group of groups) {
+    if (!group.some((item) => item.periodStatus)) starts.add(group[0].date);
   }
 
-  starts.push(currentStart);
-  return starts;
+  return [...starts].sort((a, b) => a.localeCompare(b));
 }
 
 function insufficientSummary(extra = {}) {

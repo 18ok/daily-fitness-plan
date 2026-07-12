@@ -6,6 +6,7 @@ import {
   derivePeriodStarts,
   calculateCycleSummary,
 } from '../src/lib/cycleTracking.js';
+import { getCycleTrainingAdjustment } from '../src/lib/cycleTrainingAdjustment.js';
 
 function bleeding(date, level = 'medium') {
   return { date, bleedingLevel: level, symptoms: [], note: '' };
@@ -153,6 +154,66 @@ run('spotting alone does not create a period start', () => {
     bleeding('2026-08-11', 'medium'),
   ];
   assert.deepEqual(derivePeriodStarts(logs), ['2026-08-10']);
+});
+
+run('explicit period status preserves continuous events and legacy starts', () => {
+  const logs = [
+    { date: '2026-06-01', periodStatus: 'started' },
+    { date: '2026-06-02', periodStatus: 'ongoing', bleedingLevel: 'medium' },
+    { date: '2026-06-03', periodStatus: 'ended' },
+    bleeding('2026-06-29', 'heavy'),
+  ];
+  assert.deepEqual(derivePeriodStarts(logs), ['2026-06-01', '2026-06-29']);
+});
+
+run('extended wellbeing fields normalize safely without breaking legacy logs', () => {
+  const extended = normalizeCycleLogs([{
+    date: '2026-06-01',
+    periodStatus: 'started',
+    painLevel: 6,
+    energyLevel: 3,
+    sleepQuality: 'poor',
+    redFlags: ['dizziness'],
+  }])[0];
+  assert.equal(extended.periodStatus, 'started');
+  assert.equal(extended.painLevel, 6);
+  assert.equal(extended.energyLevel, 3);
+  assert.equal(extended.sleepQuality, 'poor');
+  assert.deepEqual(extended.redFlags, ['dizziness']);
+  assert.equal(typeof extended.updatedAt, 'string');
+
+  const invalid = normalizeCycleLogs([{
+    date: '2026-06-02',
+    periodStatus: 'unknown',
+    painLevel: 11,
+    energyLevel: -1,
+    sleepQuality: 'restless',
+    redFlags: ['dizziness', 4],
+  }])[0];
+  assert.equal(invalid.periodStatus, null);
+  assert.equal(invalid.painLevel, null);
+  assert.equal(invalid.energyLevel, null);
+  assert.equal(invalid.sleepQuality, null);
+  assert.deepEqual(invalid.redFlags, ['dizziness']);
+
+  const legacy = normalizeCycleLogs([bleeding('2026-06-03')])[0];
+  assert.equal(legacy.periodStatus, null);
+  assert.equal(legacy.painLevel, null);
+  assert.equal(legacy.energyLevel, null);
+  assert.equal(legacy.sleepQuality, null);
+  assert.deepEqual(legacy.redFlags, []);
+});
+
+run('training adjustment follows conservative priority rules', () => {
+  assert.equal(getCycleTrainingAdjustment({ painLevel: 7 }).level, 'suggest_rest');
+  assert.equal(getCycleTrainingAdjustment({ redFlags: ['abnormal_bleeding'] }).level, 'suggest_rest');
+  assert.equal(getCycleTrainingAdjustment({ painLevel: 4 }).level, 'recovery');
+  assert.equal(getCycleTrainingAdjustment({ energyLevel: 2 }).level, 'recovery');
+  assert.equal(getCycleTrainingAdjustment({ sleepQuality: 'poor' }).level, 'recovery');
+  assert.equal(getCycleTrainingAdjustment({ energyLevel: 5 }).level, 'light');
+  assert.equal(getCycleTrainingAdjustment({ symptoms: ['fatigue'] }).level, 'light');
+  assert.equal(getCycleTrainingAdjustment({ energyLevel: 8, sleepQuality: 'good' }).level, 'normal');
+  assert.equal(getCycleTrainingAdjustment({ painLevel: 8, energyLevel: 1 }).requiresCareNotice, true);
 });
 
 console.log('\nAll cycle tracking tests passed.');
