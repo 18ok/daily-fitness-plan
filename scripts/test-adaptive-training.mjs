@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import {
   availableDumbbellLoads,
   buildCakeTrendSummary,
@@ -108,6 +110,28 @@ run('cake trend summary labels the first stable week', () => {
     { key: 'food_habit_days', value: 3 },
   ]);
   assert.equal(summary.explanation, '这是你和自己的趋势对比，不是体脂测试，也不会决定你今天该练多重。');
+});
+
+run('cake trend summary sorts three weekly entries into nonzero layers', () => {
+  const history = normalizeBodyTrendHistory([
+    { date: '2026-07-15', weightKg: 59.4 },
+    { date: '2026-07-01', weightKg: 60 },
+    { date: '2026-07-08', weightKg: 59.6 },
+  ]);
+  const summary = buildCakeTrendSummary({
+    bodyTrendHistory: history,
+    completedWorkouts: 2,
+    foodHabitDays: 3,
+  });
+
+  assert.deepEqual(history.map((entry) => entry.date), ['2026-07-01', '2026-07-08', '2026-07-15']);
+  assert.equal(summary.layers.length, 3);
+  assert.equal(summary.layers.every((layer) => Number.isFinite(layer.value) && layer.value !== 0), true);
+});
+
+run('body trend card is available for the cake trend summary', () => {
+  const cardPath = fileURLToPath(new URL('../src/features/profile/BodyTrendCard.jsx', import.meta.url));
+  assert.equal(existsSync(cardPath), true, 'BodyTrendCard missing');
 });
 
 run('exercise history accepts only valid feedback and five valid sets', () => {

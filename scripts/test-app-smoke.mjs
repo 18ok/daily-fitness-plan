@@ -233,6 +233,17 @@ try {
 
   await page.getByRole('button', { name: '我的', exact: true }).click();
   await expectVisible(page.locator('.profile-page'), 'Profile page');
+  await page.getByText('我的身体趋势', { exact: true }).click();
+  await page.getByLabel('本周体重（kg）', { exact: true }).fill('59.6');
+  await page.getByRole('button', { name: '记录本周体重', exact: true }).click();
+  await page.waitForFunction(() => {
+    const trend = JSON.parse(localStorage.getItem('body-trend-history') || '[]');
+    return trend.length === 1 && trend[0]?.weightKg === 59.6;
+  });
+  await expectVisible(
+    page.getByText('这是你和自己的趋势对比，不是体脂测试，也不会决定你今天该练多重。', { exact: true }),
+    'Cake trend explanation',
+  );
   await expectVisible(page.getByText('还没有配置 Supabase，同步功能暂时不可用。', { exact: true }), 'Unconfigured sync status');
   await expectVisible(page.getByPlaceholder('登录邮箱'), 'Signed-out email field');
   await expectVisible(page.getByPlaceholder('登录密码'), 'Signed-out password field');

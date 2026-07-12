@@ -13,8 +13,10 @@ import {
 import { supabase } from '../../lib/supabaseClient';
 import { downloadSnapshot, restoreLocalSnapshot, uploadSnapshot } from '../../lib/syncSnapshot';
 import { calculateCareStreak, countNightRecoveries, localDateKey } from '../../lib/careHistory';
+import { normalizeBodyTrendHistory } from '../../lib/trainingProfile';
 import { Sticker } from '../../components/common/Sticker';
 import { ModalPortal } from '../../components/common/ModalPortal';
+import { BodyTrendCard } from './BodyTrendCard';
 import { TrainingProfileSheet } from './TrainingProfileSheet';
 
 import logoCat from '../../../assets/stickers/cat-companion/illustrations_clean/02_sailor_flag_cat.png';
@@ -44,6 +46,19 @@ function ProfileSheetActions({ onCancel, onSave, saveLabel = '保存设置' }) {
 
 const reminderOptions = ['下班后', '睡醒后', '睡前', '休息日中午', '关闭提醒'];
 const foodPreferenceOptions = ['正常吃饭', '夜班后小份恢复', '便利店优先', '少油少刺激'];
+
+function localWeekKey(dateKey) {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  const offset = (date.getDay() + 6) % 7;
+  date.setDate(date.getDate() - offset);
+  return localDateKey(date);
+}
+
+function incomingTrendEntry(value) {
+  const history = normalizeBodyTrendHistory(Array.isArray(value) ? value : [value]);
+  return history.find((entry) => entry.date === localDateKey()) || history.at(-1) || null;
+}
 
 export function ProfilePage({ bodyTrendHistory, setBodyTrendHistory, setTrainingProfile, trainingProfile }) {
   const [protectMode, setProtectMode] = useLocalStorageState('profile-protect-mode', true);
@@ -360,6 +375,17 @@ export function ProfilePage({ bodyTrendHistory, setBodyTrendHistory, setTraining
     closeSettingSheet();
   }
 
+  function saveWeeklyWeight(value) {
+    const entry = incomingTrendEntry(value);
+    if (!entry) return;
+
+    const week = localWeekKey(entry.date);
+    setBodyTrendHistory((current) => normalizeBodyTrendHistory([
+      ...normalizeBodyTrendHistory(current).filter((item) => localWeekKey(item.date) !== week),
+      entry,
+    ]));
+  }
+
   const draftProfile = profileDraft || profile;
 
   return (
@@ -377,6 +403,12 @@ export function ProfilePage({ bodyTrendHistory, setBodyTrendHistory, setTraining
           {protectMode ? '小白保护已开启' : '开启小白保护'}
         </button>
       </article>
+
+      <BodyTrendCard
+        bodyTrendHistory={bodyTrendHistory}
+        careHistory={careHistory}
+        onSaveWeight={saveWeeklyWeight}
+      />
 
       <article className={`sync-panel sync-panel-live ${session ? 'is-authenticated' : 'is-logged-out'}`}>
         <div>
@@ -524,7 +556,7 @@ export function ProfilePage({ bodyTrendHistory, setBodyTrendHistory, setTraining
           bodyTrendHistory={bodyTrendHistory}
           onClose={closeSettingSheet}
           onSaveProfile={setTrainingProfile}
-          onSaveWeight={setBodyTrendHistory}
+          onSaveWeight={saveWeeklyWeight}
           profile={trainingProfile}
         />
       )}

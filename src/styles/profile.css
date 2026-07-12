@@ -99,6 +99,172 @@
   gap: 12px;
 }
 
+.body-trend-card {
+  border: 1px solid #f1e0cd;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 92% 8%, rgba(255, 221, 148, 0.4), transparent 28%),
+    linear-gradient(135deg, #fffaf0 0%, #ffffff 74%);
+  box-shadow: var(--shadow);
+}
+
+.body-trend-heading {
+  display: flex;
+  align-items: center;
+  min-height: 64px;
+  padding: 8px 10px 8px 16px;
+}
+
+.body-trend-title {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.body-trend-trigger {
+  min-height: 44px;
+  color: #342c2f;
+  background: transparent;
+  font-size: 17px;
+  line-height: 1.2;
+  font-weight: 950;
+  text-align: left;
+}
+
+.body-trend-title small {
+  color: #8d7677;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.body-trend-help {
+  flex: 0 0 44px;
+  width: 44px;
+  min-height: 44px;
+  border: 1px solid #efc7ab;
+  border-radius: 50%;
+  color: #9a6349;
+  background: #fff4e8;
+  font-size: 18px;
+  font-weight: 950;
+}
+
+.body-trend-content {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 10px 12px;
+  padding: 0 16px 16px;
+}
+
+.body-trend-cake {
+  min-height: 94px;
+  display: grid;
+  align-content: end;
+  justify-items: center;
+  gap: 3px;
+  padding: 9px 10px 8px;
+  border-radius: 18px;
+  background: #fff5e8;
+}
+
+.body-trend-cake-layer {
+  display: block;
+  height: 17px;
+  border-radius: 999px 999px 10px 10px;
+  opacity: 0.35;
+  transform: scaleX(0.88);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.body-trend-cake-layer[data-active="true"] {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.body-trend-cake-layer--body_trend {
+  width: 70px;
+  background: #f4a8b7;
+}
+
+.body-trend-cake-layer--completed_workouts {
+  width: 62px;
+  background: #f3c16c;
+}
+
+.body-trend-cake-layer--food_habit_days {
+  width: 54px;
+  background: #9ecfae;
+}
+
+.body-trend-copy p {
+  margin: 2px 0 0;
+  color: #665659;
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 750;
+}
+
+.body-trend-habit-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.body-trend-habit-chips span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: #8a7774;
+  background: #f5efeb;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.body-trend-habit-chips span.is-active {
+  color: #765436;
+  background: #fff0ce;
+}
+
+.body-trend-weight-field {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 6px;
+  color: #54494c;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.body-trend-weight-field input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  color: #342c2f;
+  font: inherit;
+}
+
+.body-trend-save {
+  grid-column: 1 / -1;
+  min-height: 44px;
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(90deg, #ef9f76 0%, #f38691 100%);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.body-trend-saved {
+  grid-column: 1 / -1;
+  color: #527764;
+  font-size: 12px;
+  font-weight: 850;
+  text-align: center;
+}
+
 .profile-hero-card {
   min-height: 124px;
   display: grid;
