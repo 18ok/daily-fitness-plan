@@ -3,6 +3,8 @@ export const EXPERIENCE_LEVELS = ['new', 'occasional', 'consistent'];
 export const AVOID_MOVEMENTS = ['squat', 'hinge', 'overhead_press', 'horizontal_pull', 'horizontal_push', 'core', 'jump', 'stand_after_sitting'];
 export const DUMBBELL_PRESETS = [0.5, 1, 1.5, 2, 3, 4, 5, 7.5, 10];
 const SAFETY_FLAGS = ['none', 'suggest_rest'];
+const TRAINING_PLACES = ['home', 'gym', 'outdoors'];
+const FOOD_HABITS = ['protein_first', 'regular_meals', 'convenience_store'];
 
 const CAKE_EXPLANATION = '这是你和自己的趋势对比，不是体脂测试，也不会决定你今天该练多重。';
 
@@ -35,6 +37,29 @@ function normalizedPresetLoads(value) {
     .sort((left, right) => left - right);
 }
 
+function normalizedCustomLoads(value) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value
+    .map(Number)
+    .filter((load) => Number.isFinite(load) && load > 0 && load <= 100)
+    .map((load) => Number(load.toFixed(1))))]
+    .sort((left, right) => left - right);
+}
+
+function normalizedMetric(value, minimum, maximum) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < minimum || number > maximum) return null;
+  return Number(number.toFixed(1));
+}
+
+function normalizedAdjustableRange(value) {
+  const range = value && typeof value === 'object' ? value : {};
+  const minKg = normalizedMetric(range.minKg, 0.1, 100);
+  const maxKg = normalizedMetric(range.maxKg, 0.1, 100);
+  if (minKg === null || maxKg === null || minKg > maxKg) return null;
+  return { minKg, maxKg };
+}
+
 function normalizedSafetyFlag(value) {
   if (value === true) return true;
   return SAFETY_FLAGS.includes(value) ? value : 'none';
@@ -49,10 +74,18 @@ export function normalizeTrainingProfile(value) {
     experienceLevel: EXPERIENCE_LEVELS.includes(profile.experienceLevel)
       ? profile.experienceLevel
       : (EXPERIENCE_LEVELS.includes(profile.experience) ? profile.experience : 'new'),
+    heightCm: normalizedMetric(profile.heightCm, 50, 250),
+    trainingPlaces: knownValues(profile.trainingPlaces, TRAINING_PLACES),
+    foodHabits: knownValues(profile.foodHabits, FOOD_HABITS),
     movementLimits: knownValuesWithAlias(profile.movementLimits, profile.avoidMovements, AVOID_MOVEMENTS),
     equipment: {
       bodyweight: equipment.bodyweight === true,
       dumbbellKg: normalizedPresetLoads(equipment.dumbbellKg),
+      bands: equipment.bands === true,
+      kettlebell: equipment.kettlebell === true,
+      gymMachines: equipment.gymMachines === true,
+      customDumbbellKg: normalizedCustomLoads(equipment.customDumbbellKg),
+      adjustableDumbbellRange: normalizedAdjustableRange(equipment.adjustableDumbbellRange),
     },
     safetyFlag: normalizedSafetyFlag(profile.safetyFlag),
     note: cleanText(profile.note),

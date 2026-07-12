@@ -226,6 +226,13 @@ try {
   await expectVisible(page.getByRole('dialog', { name: '提醒时间设置', exact: true }), 'Profile settings sheet');
   await page.getByRole('button', { name: '取消', exact: true }).click();
   await page.getByRole('dialog', { name: '提醒时间设置', exact: true }).waitFor({ state: 'detached' });
+  await page.getByText('训练偏好', { exact: true }).click();
+  await expectVisible(page.getByRole('dialog', { name: '训练资料设置', exact: true }), 'Training profile sheet');
+  await page.getByRole('button', { name: '建立习惯', exact: true }).click();
+  await page.getByRole('button', { name: '从没练过', exact: true }).click();
+  await page.getByRole('button', { name: '2kg', exact: true }).click();
+  await page.getByRole('button', { name: '保存训练资料', exact: true }).click();
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('training-profile') || '{}').goal === 'habit');
   await page.locator('.profile-edit-trigger').click();
   await expectVisible(page.getByRole('dialog', { name: '编辑个人资料', exact: true }), 'Profile edit sheet');
   await page.locator('.profile-edit-sheet').evaluate((element) => {

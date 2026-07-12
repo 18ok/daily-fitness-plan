@@ -77,7 +77,14 @@ function App() {
             {activeTab === 'record' && <RecordPage state={state} />}
             {activeTab === 'library' && <LibraryPage state={state} setState={setState} setActiveTab={setActiveTab} />}
             {activeTab === 'stickers' && <StickersPage state={state} />}
-            {activeTab === 'profile' && <ProfilePage />}
+            {activeTab === 'profile' && (
+              <ProfilePage
+                bodyTrendHistory={bodyTrendHistory}
+                setBodyTrendHistory={setBodyTrendHistory}
+                setTrainingProfile={setTrainingProfile}
+                trainingProfile={trainingProfile}
+              />
+            )}
           </>
         )}
 

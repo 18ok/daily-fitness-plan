@@ -11,6 +11,7 @@ import {
   recommendNextLoad,
   upsertExerciseLog,
 } from '../src/lib/exerciseHistory.js';
+import { collectLocalSnapshot } from '../src/lib/syncSnapshot.js';
 import { buildPlan } from '../src/features/today/planBuilder.js';
 import { buildAdaptiveWorkout } from '../src/features/today/adaptiveWorkout.js';
 
@@ -39,6 +40,30 @@ run('training profile keeps only known values and safe dumbbell loads', () => {
   assert.equal(profile.equipment.bodyweight, true);
   assert.equal(profile.note, 'a'.repeat(120));
   assert.deepEqual(availableDumbbellLoads(profile), [2, 3]);
+});
+
+run('training profile preserves normalized local-only setup details', () => {
+  const profile = normalizeTrainingProfile({
+    heightCm: '165.5',
+    trainingPlaces: ['home', 'gym', 'unknown', 'home'],
+    foodHabits: ['protein_first', 'unknown', 'protein_first'],
+    equipment: {
+      bands: true,
+      kettlebell: true,
+      gymMachines: true,
+      customDumbbellKg: ['2.5', 12.5, 101, -1, 12.5],
+      adjustableDumbbellRange: { minKg: '2', maxKg: '24' },
+    },
+  });
+
+  assert.equal(profile.heightCm, 165.5);
+  assert.deepEqual(profile.trainingPlaces, ['home', 'gym']);
+  assert.deepEqual(profile.foodHabits, ['protein_first']);
+  assert.equal(profile.equipment.bands, true);
+  assert.equal(profile.equipment.kettlebell, true);
+  assert.equal(profile.equipment.gymMachines, true);
+  assert.deepEqual(profile.equipment.customDumbbellKg, [2.5, 12.5]);
+  assert.deepEqual(profile.equipment.adjustableDumbbellRange, { minKg: 2, maxKg: 24 });
 });
 
 run('body trend history removes invalid dates and weights', () => {
@@ -327,6 +352,29 @@ run('fat loss food guide omits calories', () => {
   });
 
   assert.equal('calories' in workout.mealGuide, false);
+});
+
+run('local snapshots omit training profiles and body records', () => {
+  const originalStorage = globalThis.localStorage;
+  const store = new Map([
+    ['daily-plan-history', JSON.stringify([{ date: '2026-07-12' }])],
+    ['training-profile', JSON.stringify({ goal: 'habit', heightCm: 165 })],
+    ['body-trend-history', JSON.stringify([{ date: '2026-07-12', weightKg: 60 }])],
+    ['exercise-session-history', JSON.stringify([{ exerciseId: 'squat' }])],
+  ]);
+  globalThis.localStorage = {
+    getItem: (key) => store.get(key) ?? null,
+  };
+
+  try {
+    const snapshot = collectLocalSnapshot();
+    assert.deepEqual(snapshot['daily-plan-history'], [{ date: '2026-07-12' }]);
+    assert.equal('training-profile' in snapshot, false);
+    assert.equal('body-trend-history' in snapshot, false);
+    assert.equal('exercise-session-history' in snapshot, false);
+  } finally {
+    globalThis.localStorage = originalStorage;
+  }
 });
 
 run('light and recovery workouts use at most two sets per movement', () => {

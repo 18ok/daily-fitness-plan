@@ -15,6 +15,7 @@ import { downloadSnapshot, restoreLocalSnapshot, uploadSnapshot } from '../../li
 import { calculateCareStreak, countNightRecoveries, localDateKey } from '../../lib/careHistory';
 import { Sticker } from '../../components/common/Sticker';
 import { ModalPortal } from '../../components/common/ModalPortal';
+import { TrainingProfileSheet } from './TrainingProfileSheet';
 
 import logoCat from '../../../assets/stickers/cat-companion/illustrations_clean/02_sailor_flag_cat.png';
 import umbrellaCat from '../../../assets/stickers/cat-companion/illustrations_clean/09_kimono_umbrella_cat.png';
@@ -42,18 +43,12 @@ function ProfileSheetActions({ onCancel, onSave, saveLabel = '保存设置' }) {
 }
 
 const reminderOptions = ['下班后', '睡醒后', '睡前', '休息日中午', '关闭提醒'];
-const trainingPlaceOptions = ['健身房', '家里', '速食便利店'];
-const trainingDurationOptions = ['15分钟', '30分钟', '45分钟', '60分钟'];
 const foodPreferenceOptions = ['正常吃饭', '夜班后小份恢复', '便利店优先', '少油少刺激'];
 
-export function ProfilePage() {
+export function ProfilePage({ bodyTrendHistory, setBodyTrendHistory, setTrainingProfile, trainingProfile }) {
   const [protectMode, setProtectMode] = useLocalStorageState('profile-protect-mode', true);
   const [nightMode, setNightMode] = useLocalStorageState('profile-night-mode', true);
   const [reminderTime, setReminderTime] = useLocalStorageState('profile-reminder-time', '下班后');
-  const [trainingPreference, setTrainingPreference] = useLocalStorageState('profile-training-preference', {
-    place: '健身房',
-    duration: '30分钟',
-  });
   const [foodPreference, setFoodPreference] = useLocalStorageState('profile-food-preference', '正常吃饭');
   const [careHistory] = useLocalStorageState('care-history', []);
   const [stickerFavorites] = useLocalStorageState('sticker-favorites', ['慢慢来']);
@@ -61,7 +56,6 @@ export function ProfilePage() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileDraft, setProfileDraft] = useState(null);
   const [reminderDraft, setReminderDraft] = useState(reminderTime);
-  const [trainingDraft, setTrainingDraft] = useState(trainingPreference);
   const [foodDraft, setFoodDraft] = useState(foodPreference);
   const [profile, setProfile] = useLocalStorageState('profile', {
     name: '今天也慢慢来',
@@ -93,9 +87,11 @@ export function ProfilePage() {
     { id: 'reminder', title: '提醒时间', value: reminderTime, icon: CalendarDays },
     { id: 'food', title: '饮食偏好', value: foodPreference, icon: Utensils },
     {
-      id: 'training',
+      id: 'training-profile',
       title: '训练偏好',
-      value: `${trainingPreference.place} · ${trainingPreference.duration}`,
+      value: Array.isArray(trainingProfile?.goals) && trainingProfile.goals.length
+        ? '已设置训练资料'
+        : '按你的情况慢慢设置',
       icon: Dumbbell,
     },
     { id: 'sync', title: '数据备份', value: session ? '已登录' : '登录同步', icon: Save },
@@ -346,7 +342,6 @@ export function ProfilePage() {
 
   function openSettingSheet(id) {
     if (id === 'reminder') setReminderDraft(reminderTime);
-    if (id === 'training') setTrainingDraft({ ...trainingPreference });
     if (id === 'food') setFoodDraft(foodPreference);
     setActiveSheet(id);
   }
@@ -357,11 +352,6 @@ export function ProfilePage() {
 
   function saveReminder() {
     setReminderTime(reminderDraft);
-    closeSettingSheet();
-  }
-
-  function saveTraining() {
-    setTrainingPreference(trainingDraft);
     closeSettingSheet();
   }
 
@@ -529,39 +519,14 @@ export function ProfilePage() {
         </div></ModalPortal>
       )}
 
-      {activeSheet === 'training' && (
-        <ModalPortal><div className="detail-sheet-backdrop" role="presentation" onClick={closeSettingSheet}>
-          <section className="profile-setting-sheet" role="dialog" aria-modal="true" aria-label="训练偏好设置" onClick={(event) => event.stopPropagation()}>
-            <div className="sheet-handle" />
-            <h2>训练偏好</h2>
-            <p>默认值只是帮你少点几下，随时可以改。</p>
-            <h3 className="setting-group-title">默认训练地点</h3>
-            <div className="setting-options">
-              {trainingPlaceOptions.map((item) => (
-                <SettingOption
-                  active={trainingDraft.place === item}
-                  key={item}
-                  onClick={() => setTrainingDraft((current) => ({ ...current, place: item }))}
-                >
-                  {item}
-                </SettingOption>
-              ))}
-            </div>
-            <h3 className="setting-group-title">默认训练时长</h3>
-            <div className="setting-option-grid">
-              {trainingDurationOptions.map((item) => (
-                <SettingOption
-                  active={trainingDraft.duration === item}
-                  key={item}
-                  onClick={() => setTrainingDraft((current) => ({ ...current, duration: item }))}
-                >
-                  {item}
-                </SettingOption>
-              ))}
-            </div>
-            <ProfileSheetActions onCancel={closeSettingSheet} onSave={saveTraining} />
-          </section>
-        </div></ModalPortal>
+      {activeSheet === 'training-profile' && (
+        <TrainingProfileSheet
+          bodyTrendHistory={bodyTrendHistory}
+          onClose={closeSettingSheet}
+          onSaveProfile={setTrainingProfile}
+          onSaveWeight={setBodyTrendHistory}
+          profile={trainingProfile}
+        />
       )}
 
       {activeSheet === 'food' && (
