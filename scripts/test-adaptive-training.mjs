@@ -112,6 +112,37 @@ run('advertised equipment has selected-only plans and logs retain equipment deta
   });
 });
 
+run('supported machines use matching movements while legacy unknown machines receive neutral orientation', () => {
+  const shared = {
+    basePlan: buildPlan('30分钟', '白班', '家里'),
+    state: { time: '30分钟', status: '白班', condition: '家里' },
+    exerciseHistory: [],
+    cycleAdjustment: { level: 'normal' },
+  };
+  const legPress = buildAdaptiveWorkout({
+    ...shared,
+    trainingProfile: normalizeTrainingProfile({ equipment: { gymMachines: ['腿举机'] } }),
+  });
+  const limitedLegPress = buildAdaptiveWorkout({
+    ...shared,
+    trainingProfile: normalizeTrainingProfile({
+      equipment: { gymMachines: ['腿举机'] }, movementLimits: ['squat'],
+    }),
+  });
+  const unknownMachine = buildAdaptiveWorkout({
+    ...shared,
+    trainingProfile: normalizeTrainingProfile({ equipment: { gymMachines: ['旧式组合器械'] } }),
+  });
+
+  assert.equal(legPress.movements.some((movement) => movement.id === 'machine_leg_press'
+    && movement.equipmentLabel === '腿举机'), true);
+  assert.equal(legPress.movements.some((movement) => movement.id === 'machine_row'), false);
+  assert.equal(limitedLegPress.movements.some((movement) => movement.id === 'machine_leg_press'), false);
+  assert.equal(unknownMachine.movements.length, 0);
+  assert.equal(unknownMachine.mode, 'normal');
+  assert.match(unknownMachine.safetyNotice, /器械说明/);
+});
+
 run('available dumbbell loads keeps valid custom weights and an unstepped minimum', () => {
   const profile = normalizeTrainingProfile({
     equipment: {
@@ -301,6 +332,28 @@ run('an uncomfortable kettlebell action cannot keep a selectable load on its rep
   const replacement = workout.movements.find((movement) => movement.isSafetyAlternative);
   assert.equal(replacement.suggestedLoad.loadKg, null);
   assert.equal(replacement.loadKind, 'bodyweight');
+});
+
+run('later uncomfortable actions stay visible as no-load fallbacks in light and recovery sessions', () => {
+  ['light', 'recovery'].forEach((level) => {
+    const workout = buildAdaptiveWorkout({
+      basePlan: buildPlan('15分钟', '白班', '家里'),
+      state: { time: '15分钟', status: '白班', condition: '家里' },
+      trainingProfile: normalizeTrainingProfile({ equipment: { bodyweight: true } }),
+      exerciseHistory: [{
+        exerciseId: 'dead_bug',
+        date: '2026-07-11',
+        feedback: 'uncomfortable',
+        loadKg: null,
+        sets: [{ plannedReps: 8, completedReps: 8 }],
+      }],
+      cycleAdjustment: { level },
+    });
+
+    assert.equal(workout.movements.some((movement) => movement.isSafetyAlternative
+      && movement.suggestedLoad.loadKg === null), true);
+    assert.match(workout.safetyNotice, /咨询/);
+  });
 });
 
 run('next load stops or starts with the required safe defaults', () => {
@@ -554,6 +607,7 @@ run('local discomfort notes stay unparsed while explicit food choices tailor fat
   });
   assert.match(workout.mealGuide.suggestion, /外卖/);
   assert.match(workout.mealGuide.reminder, /早餐/);
+  assert.match(`${workout.mealGuide.suggestion} ${workout.mealGuide.reminder}`, /不想吃海鲜/);
   assert.equal(JSON.stringify(workout).includes(profile.discomfortNote), false);
 });
 

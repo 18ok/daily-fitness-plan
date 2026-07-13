@@ -725,7 +725,8 @@ button:focus-visible {
   gap: 6px;
 }
 
-.adaptive-note textarea {
+.adaptive-note textarea,
+.adaptive-note input {
   width: 100%;
   min-height: 72px;
   padding: 10px;

@@ -143,6 +143,7 @@ export function AdaptiveWorkoutCard({ exerciseHistory, onSaveLog, profile, worko
                   <p className="adaptive-suggestion">今天建议：{movement.suggestedLoad.guidance}</p>
                   <p className="adaptive-reason">为什么这样安排：{movement.why}</p>
                   {movement.replacement && <p className="adaptive-replacement">如果不舒服，换成：{movement.replacement}</p>}
+                  <p className="adaptive-stop-hint">{movement.stopHint}</p>
                   <ol className="adaptive-history" aria-label={`${movement.name}最近三次记录`}>
                     {history.length > 0 ? history.map((log) => (
                       <li key={`${log.exerciseId}-${log.date}`}>

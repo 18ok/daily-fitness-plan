@@ -122,13 +122,48 @@ const kettlebellCatalog = [
   },
 ];
 
-const machineCatalog = [{
-  id: 'machine_row',
-  name: '器械划船',
-  movement: 'horizontal_pull',
-  requiresMachine: true,
-  loadKind: 'machine',
-}];
+const machineCatalog = [
+  {
+    id: 'machine_seated_row',
+    name: '坐姿划船',
+    movement: 'horizontal_pull',
+    equipmentLabel: '坐姿划船机',
+    machineLabel: '坐姿划船机',
+    requiresMachine: true,
+    loadKind: 'machine',
+  },
+  {
+    id: 'machine_chest_press',
+    name: '坐姿推胸',
+    movement: 'horizontal_push',
+    equipmentLabel: '坐姿推胸机',
+    machineLabel: '坐姿推胸机',
+    requiresMachine: true,
+    loadKind: 'machine',
+  },
+  {
+    id: 'machine_leg_press',
+    name: '器械腿举',
+    movement: 'squat',
+    limitMovements: ['squat', 'stand_after_sitting'],
+    equipmentLabel: '腿举机',
+    machineLabel: '腿举机',
+    requiresMachine: true,
+    loadKind: 'machine',
+  },
+];
+
+function trainingCatalog() {
+  return [...movementCatalog, ...bandCatalog, ...kettlebellCatalog, ...machineCatalog];
+}
+
+function unsupportedMachineLabels(machines) {
+  return machines.filter((label) => !machineCatalog.some((template) => template.machineLabel === label));
+}
+
+function machineOrientationNotice() {
+  return '这台器械暂未有对应动作安排；先查看器械说明，从最轻档熟悉轨迹。如不确定，请先停止并询问现场教练。';
+}
 
 const recoveryCatalog = [
   {
@@ -246,7 +281,7 @@ function resolveMovement(template, context) {
   const limitedMovements = template.limitMovements || [template.movement];
 
   if (latestExerciseLog(exerciseHistory, template.id)?.feedback === 'uncomfortable') {
-    resolved = { ...template, ...uncomfortableFallback };
+    resolved = { ...template, ...uncomfortableFallback, id: `${uncomfortableFallback.id}_${template.id}` };
   } else if (limitedMovements.some((movement) => limits.includes(movement))) {
     if (!template.avoidedFallback) return null;
     resolved = { ...template, ...template.avoidedFallback, requiresDumbbell: false };
@@ -257,6 +292,7 @@ function resolveMovement(template, context) {
   if ((resolved.requiresDumbbell && loads.length === 0)
     || (resolved.requiresKettlebell && kettlebellLoads.length === 0)
     || (resolved.requiresMachine && machines.length === 0)
+    || (resolved.requiresMachine && resolved.machineLabel && !machines.includes(resolved.machineLabel))
     || (resolved.requiresBands && !bands)
     || (resolved.requiresBodyweight && !bodyweight)) {
     return null;
@@ -270,7 +306,7 @@ function resolveMovement(template, context) {
     name: resolved.name,
     replacement: resolved.replacement || null,
     isSafetyAlternative: resolved.isSafetyAlternative === true,
-    equipmentLabel: resolved.requiresMachine ? machines[0] : resolved.equipmentLabel,
+    equipmentLabel: resolved.requiresMachine ? resolved.machineLabel : resolved.equipmentLabel,
     loadKind,
     availableLoads: loadKind === 'load' ? availableLoads : [],
     sets: setsFor(mode, experienceLevel),
@@ -321,37 +357,43 @@ function tailoredMealGuide(basePlan, profile, state) {
   const habits = profile?.dietHabits || {};
   if (!profileGoals(profile).includes('fat_loss_food')) return guide;
 
+  let tailored = guide;
   if (habits.takeout === 'weekly_4_plus') {
-    return {
+    tailored = {
       ...guide,
       suggestion: '外卖时可以先找一份蛋白质、一个主食和蔬菜，不用为了补偿而少吃。',
       reminder: habits.breakfast === 'rarely'
         ? '早餐先从一份容易准备的主食和蛋白质开始，规律比追求完美更重要。'
         : guide.reminder,
     };
-  }
-  if (habits.protein === 'unsure') {
-    return {
+  } else if (habits.protein === 'unsure') {
+    tailored = {
       ...guide,
       suggestion: '每餐先看看有没有蛋、奶、豆制品、鱼肉或其他你愿意吃的蛋白质。',
       reminder: habits.breakfast === 'rarely'
         ? '早餐先从一份容易准备的主食和蛋白质开始，规律比追求完美更重要。'
         : guide.reminder,
     };
+  } else if (habits.breakfast === 'rarely') {
+    tailored = { ...guide, reminder: '早餐先从一份容易准备的主食和蛋白质开始，规律比追求完美更重要。' };
   }
-  if (habits.breakfast === 'rarely') {
-    return { ...guide, reminder: '早餐先从一份容易准备的主食和蛋白质开始，规律比追求完美更重要。' };
+
+  if (habits.restrictions) {
+    return {
+      ...tailored,
+      reminder: `${tailored.reminder} 忌口或不想吃：${habits.restrictions}，按自己的习惯替换即可。`,
+    };
   }
-  return guide;
+  return tailored;
 }
 
 function safetyNotice(mode, cycleAdjustment, hasUncomfortableAction = false) {
   if (mode === 'suggest_rest') {
     return cycleAdjustment?.suggestion || '今天先暂停训练；如症状严重、持续或令你担心，请及时就医。';
   }
+  if (hasUncomfortableAction) return '上次有动作让你不舒服，今天先停掉那个动作并改做无负重舒缓活动；如不适持续或令你担心，请停止并咨询专业人士。';
   if (mode === 'recovery') return '今天以舒缓活动为主；如不适就停止。';
   if (mode === 'light') return '今天做轻量版本，动作舒服比完成数量更重要。';
-  if (hasUncomfortableAction) return '上次有动作让你不舒服，今天先停掉那个动作并改做无负重舒缓活动；如不适持续或令你担心，请停止并咨询专业人士。';
   return '按自己的感受调整；如果训练中出现不适，请及时停止。';
 }
 
@@ -367,6 +409,7 @@ export function buildAdaptiveWorkout({
   const loads = availableDumbbellLoads(trainingProfile);
   const kettlebellLoads = availableKettlebellLoads(trainingProfile);
   const machines = selectedGymMachines(trainingProfile);
+  const unknownMachines = unsupportedMachineLabels(machines);
   const context = {
     bands: trainingProfile?.equipment?.bands === true,
     goals,
@@ -389,14 +432,27 @@ export function buildAdaptiveWorkout({
     };
   }
 
+  const safetyAlternatives = uniqueMovements(trainingCatalog()
+    .filter((template) => latestExerciseLog(exerciseHistory, template.id)?.feedback === 'uncomfortable')
+    .map((template) => resolveMovement(template, context)));
   const templates = mode === 'recovery'
     ? recoveryCatalog
-    : [...movementCatalog, ...bandCatalog, ...kettlebellCatalog, ...machineCatalog];
-  const movements = uniqueMovements(templates.map((template) => resolveMovement(template, context)))
-    .slice(0, movementCount(state?.time, context.experienceLevel));
-  const hasUncomfortableAction = movements.some((movement) => movement.isSafetyAlternative);
+    : trainingCatalog();
+  const plannedMovements = uniqueMovements(templates.map((template) => resolveMovement(template, context)))
+    .filter((movement) => !movement.isSafetyAlternative);
+  const movementLimit = movementCount(state?.time, context.experienceLevel);
+  const movements = [...safetyAlternatives, ...plannedMovements.slice(0, Math.max(0, movementLimit - safetyAlternatives.length))];
+  const hasUncomfortableAction = safetyAlternatives.length > 0;
 
   if (movements.length === 0) {
+    if (unknownMachines.length > 0) {
+      return {
+        mode,
+        movements: [],
+        mealGuide: tailoredMealGuide(basePlan, trainingProfile, state),
+        safetyNotice: machineOrientationNotice(),
+      };
+    }
     return {
       mode: 'suggest_rest',
       movements: [],
@@ -409,7 +465,9 @@ export function buildAdaptiveWorkout({
     mode,
     movements,
     mealGuide: tailoredMealGuide(basePlan, trainingProfile, state),
-    safetyNotice: safetyNotice(mode, cycleAdjustment, hasUncomfortableAction),
+    safetyNotice: unknownMachines.length > 0
+      ? `${safetyNotice(mode, cycleAdjustment, hasUncomfortableAction)} ${machineOrientationNotice()}`
+      : safetyNotice(mode, cycleAdjustment, hasUncomfortableAction),
   };
 }
 

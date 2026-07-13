@@ -32,6 +32,8 @@ const EQUIPMENT_OPTIONS = [
   { value: 'gymMachines', label: '健身房器械' },
 ];
 
+const MACHINE_OPTIONS = ['坐姿划船机', '坐姿推胸机', '腿举机'];
+
 const MOVEMENT_OPTIONS = [
   { value: AVOID_MOVEMENTS[0], label: '深蹲动作' },
   { value: AVOID_MOVEMENTS[7], label: '久坐后起身' },
@@ -109,7 +111,6 @@ export function TrainingProfileSheet({ bodyTrendHistory, onClose, onSaveProfile,
   const [draft, setDraft] = useState(() => createDraft(profile, bodyTrendHistory));
   const [customWeight, setCustomWeight] = useState('');
   const [kettlebellWeight, setKettlebellWeight] = useState('');
-  const [machineName, setMachineName] = useState('');
   const weightWasEdited = useRef(false);
 
   function toggleDraftValue(key, value) {
@@ -189,25 +190,12 @@ export function TrainingProfileSheet({ bodyTrendHistory, onClose, onSaveProfile,
     }));
   }
 
-  function addMachine() {
-    const label = machineName.trim().slice(0, 60);
-    if (!label) return;
+  function toggleMachine(label) {
     setDraft((current) => ({
       ...current,
       equipment: {
         ...current.equipment,
-        gymMachines: [...new Set([...current.equipment.gymMachines, label])],
-      },
-    }));
-    setMachineName('');
-  }
-
-  function removeMachine(label) {
-    setDraft((current) => ({
-      ...current,
-      equipment: {
-        ...current.equipment,
-        gymMachines: current.equipment.gymMachines.filter((item) => item !== label),
+        gymMachines: toggleValue(current.equipment.gymMachines, label),
       },
     }));
   }
@@ -394,27 +382,17 @@ export function TrainingProfileSheet({ bodyTrendHistory, onClose, onSaveProfile,
                 ))}
               </div>
             )}
-            <div className="training-profile-custom-weight">
-              <label>
-                <span>健身房器械名称</span>
-                <input
-                  maxLength="60"
-                  onChange={(event) => setMachineName(event.target.value)}
-                  placeholder="例如：坐姿划船机"
-                  value={machineName}
-                />
-              </label>
-              <button onClick={addMachine} type="button">添加器械</button>
+            <div aria-label="支持的健身房器械" className="training-profile-choice-grid">
+              {MACHINE_OPTIONS.map((label) => (
+                <ChoiceButton
+                  active={draft.equipment.gymMachines.includes(label)}
+                  key={label}
+                  onClick={() => toggleMachine(label)}
+                >
+                  {label}
+                </ChoiceButton>
+              ))}
             </div>
-            {draft.equipment.gymMachines.length > 0 && (
-              <div aria-label="已选健身房器械" className="training-profile-weight-chips">
-                {draft.equipment.gymMachines.map((label) => (
-                  <button key={label} onClick={() => removeMachine(label)} type="button">
-                    {label} ×
-                  </button>
-                ))}
-              </div>
-            )}
             <div className="training-profile-range-fields">
               <label>
                 <span>可调哑铃最轻（kg）</span>

@@ -150,6 +150,7 @@ try {
   const firstAdaptiveMovement = page.locator('.adaptive-movement').first();
   await expectVisible(firstAdaptiveMovement.locator('.adaptive-suggestion'), 'Immediate adaptive suggestion');
   await expectVisible(firstAdaptiveMovement.locator('.adaptive-reason'), 'Immediate adaptive reason');
+  await expectVisible(firstAdaptiveMovement.locator('.adaptive-stop-hint'), 'Movement stop hint');
   await expectVisible(firstAdaptiveMovement.getByText('2026-07-11', { exact: true }), 'Immediate recent exercise history');
   await page.getByRole('button', { name: '记录第 1 个动作', exact: true }).click();
   await expectVisible(page.getByRole('button', { name: '2.5kg', exact: true }), 'Owned custom dumbbell weight');
