@@ -32,3 +32,8 @@ devserver.out.log
 
 # Local browser verification output
 /artifacts/
+
+# Local process state and private Vault material
+.superpowers/
+/健身/
+/docs/archive/
